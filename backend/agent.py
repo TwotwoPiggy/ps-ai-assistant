@@ -168,9 +168,8 @@ class PhotoshopAgent:
                     if status_callback:
                         await status_callback("thinking", f"主提供商 ({current_provider_name}) 连接超时或发生异常，正在自动降级回退至 Gemini 运行...")
                     try:
-                        from backend.providers.gemini import GeminiProvider
-                        gemini_model = config.get("providers", {}).get("gemini", {}).get("model", "gemini-2.5-flash")
-                        fallback_provider = GeminiProvider(api_key=gemini_key, model=gemini_model)
+                        fallback_provider = get_provider("gemini", config)
+
                         
                         reply_text, tool_calls = await fallback_provider.chat(
                             messages=self.conversations[sid],
@@ -180,6 +179,7 @@ class PhotoshopAgent:
                         reply_text = f"【系统提示：由于主模型 {current_provider_name} 连接失败，本轮对话已自动降级由 Gemini 接管处理。】\n\n{reply_text}"
                         primary_error = None
                     except Exception as fallback_error:
+
                         print(f"[PS-AI] 降级回退至 Gemini 失败: {fallback_error}")
                         raise primary_error
                 else:
