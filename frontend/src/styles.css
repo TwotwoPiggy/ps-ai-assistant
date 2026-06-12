@@ -293,3 +293,95 @@ body {
     margin: 0;
     padding: 0;
 }
+
+.sdppp-chat-bubble-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+/* 多 Provider 表单字段样式 */
+.sdppp-ai-provider-select,
+.sdppp-ai-base-url-input,
+.sdppp-ai-model-input {
+    flex: 1;
+    padding: 8px;
+    background-color: #222;
+    border: 1px solid #555;
+    color: #fff;
+    border-radius: 4px;
+    outline: none;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.sdppp-ai-provider-select:focus,
+.sdppp-ai-base-url-input:focus,
+.sdppp-ai-model-input:focus {
+    border-color: #bb86fc;
+}
+
+/* 思维链渲染样式 */
+.sdppp-ai-thinking-box {
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.02);
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: #aaa;
+    overflow: hidden;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.sdppp-ai-thinking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.sdppp-ai-thinking-header:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.sdppp-ai-thinking-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    color: #bb86fc;
+}
+
+.thinking-icon {
+    font-size: 13px;
+}
+
+.sdppp-ai-thinking-arrow {
+    font-size: 11px;
+    color: #888;
+    transition: transform 0.2s ease;
+    transform: rotate(-90deg);
+}
+
+.sdppp-ai-thinking-arrow.open {
+    transform: rotate(0deg);
+}
+
+.sdppp-ai-thinking-content {
+    padding: 10px;
+    font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 150px;
+    overflow-y: auto;
+    color: #999;
+    background-color: rgba(0, 0, 0, 0.15);
+}
