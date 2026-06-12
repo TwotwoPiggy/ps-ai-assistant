@@ -1,28 +1,33 @@
-# 多提供商架构研究总结
+# 摘要：Photoshop AI 助手架构演进与 UXP 研究总结
 
-*综合自 STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md*
+> 自动生成自 `STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md` 综合研究报告。
 
-## 1. 技术栈变更
-- **新增核心依赖**: `openai>=2.41.1` (一个 SDK 覆盖所有非 Gemini 供应商)
-- **双引擎策略**: Gemini 继续使用原生 `google-genai` SDK，DeepSeek/Qwen/MiMo/自定义统一使用 `openai` SDK。不推荐引入各家原生 SDK。
+## 1. 核心目标与方向
+本次研究聚焦于 Photoshop AI 助手的下一代架构演进（里程碑 v1.1），核心目标包括：
+1. **多模型能力整合**：引入基于 OpenAI 兼容的 Function Calling 标准格式，评估并适配 Qwen、MiMo、DeepSeek 等大模型，突破当前对单一 Gemini 模型的依赖。
+2. **底层执行引擎重构 (UXP 迁移)**：探索并逐步使用现代化的 UXP (Unified Extensibility Platform) 架构取代传统受限于 Windows 平台的 Python COM (`pywin32`) 接口，从而实现跨平台支持（Windows & macOS）、内嵌面板的沉浸式体验以及更快速稳定的异步事件处理。
 
-## 2. 核心特性对比与挑战
-- **工具定义差异**: Gemini 靠原生函数推断 schema；OpenAI 兼容接口必须手动提供 JSON Schema 格式。这是最大的改造点，需要从现有的 Python 方法动态生成 OpenAPI 格式的 JSON Schema。
-- **消息格式差异**: Gemini 历史为 `types.Content` 对象；OpenAI 格式为标准 `dict` ({"role": "user", "content": "..."})。
-- **视觉能力断层**: 
-  - Gemini / Qwen-VL / MiMo-v2.5: 原生支持多模态，图像数据可随 Prompt 发送。
-  - DeepSeek: 主流文本/推理模型**不支持**图片。使用此 Provider 时无法分析画布截图，需降级。
-- **推理模型陷阱 (Thinking)**: DeepSeek R1 和 Qwen 的思维模式与 Tool Calling 的交互可能导致 JSON 解析异常。建议针对 PS 工具交互场景**默认关闭** thinking mode 或做特殊容错。
+## 2. 大模型与 Function Calling 策略
+- **多提供商能力评估**：
+  - **Qwen (通义千问) / MiMo**：能够完美支持视觉多模态输入与工具调用的同时处理（如 Qwen-VL 系列），是本项目实现截图分析与复杂函数调用的最佳选择。
+  - **DeepSeek (V3/R1)**：逻辑推理能力极强，但主力模型原生不支持图片与工具调用的混合输入。若使用需引入视觉分析模型作降级预处理。
+- **实施方案**：建立统一的消息格式适配器和 Provider 路由器，将现有基于 Gemini 专用 SDK 的逻辑改造为支持 OpenAI JSON Schema 标准。
 
-## 3. 架构设计方向
-- **Strategy Pattern (策略模式)**: 
-  - `PhotoshopAgent` 作为协调层
-  - 下设 `BaseProvider` 接口
-  - 分离为 `GeminiProvider` 和 `OpenAICompatProvider` 两个主要实现
-- **解耦操作**: 将原先混在 Agent 类中的 11 个 PS COM 操作拆分到独立的 `tools/ps_tools.py` 中。
-- **内部统一格式**: 采用更标准的 OpenAI 字典格式作为系统内部交互标准，GeminiProvider 负责将其转换为 Gemini 对象。
+## 3. UXP 技术栈与架构演进
+- **核心开发工具**：
+  - **Adobe UDT (UXP Developer Tool)**：用于桌面端的本地调试与热重载。
+  - **Alchemist 插件** (开发者版)：用于监听和拦截 Action Manager 事件并逆向生成 `batchPlay` 脚本，是探索高级 API 边界的核心利器。
+- **架构与数据流转变**：
+  - 执行权限下放：后端的 FastAPI 完全解绑本地进程，转型为纯粹的会话中枢和 AI 网关。
+  - 通信方式：利用 UXP 原生支持的 WebSocket 构建 IPC 双向通信。FastAPI 将模型生成的 Tool Call 下发至 UXP 客户端执行并等待回调响应。
+- **演进路线图**：采取五阶段迁移策略：脚手架搭建 -> WebSocket 通信打通 -> 核心功能 PoC -> 全量 COM 逻辑替换 -> 最终前端 React UI 嵌入。
 
-## 4. 安全与配置扩展
-- 前端配置从"1个Key+1个模型"扩展为"预置厂商下拉列表 + Key + BaseURL(可选) + Model"
-- 需要修改 `ai_config` WebSocket 接口以支持新的配置结构。
-- 考虑到前端会拉取配置，务必在服务端向前端返回配置时进行 API Key **脱敏**（如截断显示后四位），防止安全泄漏。
+## 4. 关键风险与避坑指南 (Pitfalls)
+在 UXP 的研发与集成过程中，需重点规避以下技术陷阱：
+1. **模态上下文冲突**：文档状态修改必须包裹在 `executeAsModal` 中。需要构建统一的操作队列，严格隔离“只读请求”与“写入操作”，防止 Photoshop 界面无响应。
+2. **过度依赖 `batchPlay`**：应当坚持“DOM 优先”原则。难以避免的 `batchPlay` 调用必须被隔离封装，避免代码恶化。
+3. **双系统状态不同步**：当 UXP 与原有 COM 接口共存时极易产生竞态冲突。需确立 UXP 为单一真相来源（Single Source of Truth），改用事件驱动推送状态。
+4. **沙盒隔离与线程拥堵**：
+   - UXP 虽采用 V8 引擎但并非 Node.js，**严禁引入** `fs`/`path` 等系统模块。
+   - 避免在 UI 线程执行深度的大图层树递归解析；对于快照抓取，应使用临时文件（`localFileSystem.temporaryFolder`）中转，避免通过 Base64 内存流传递大图导致 UI 卡顿。
+5. **Manifest 权限限制**：一切网络访问、文件存取等行为均需在 `manifest.json` 中事先声明，否则在生产打包后将直接失效。
