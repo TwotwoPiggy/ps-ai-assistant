@@ -12,40 +12,34 @@
 
 ### Validated
 
-<!-- Shipped and confirmed valuable. -->
-
 - ✓ 用户可通过聊天界面发送自然语言指令操控 Photoshop — v0 (existing)
 - ✓ AI 可获取图层树并进行图层 CRUD 操作 — v0 (existing)
 - ✓ AI 可截取画布快照进行视觉理解 — v0 (existing)
 - ✓ AI 可调整亮度对比度、裁剪画布、调整画布尺寸、翻转图像 — v0 (existing)
 - ✓ 前端 React 聊天面板 + Socket.IO 实时通信 — v0 (existing)
 - ✓ API Key 和模型名称可通过配置面板保存 — v0 (existing)
+- ✓ 多 Provider 抽象层（支持 Gemini SDK 与 OpenAI SDK 双通道） — v1.0
+- ✓ 预置提供商集成（DeepSeek R1 推理思维链展示、Qwen、MiMo） — v1.0
+- ✓ 自定义 OpenAI 兼容 Provider（手动填入 Base URL 与模型名称） — v1.0
+- ✓ 安全的双向 API Key 掩码及聚焦置空保护交互 — v1.0
+- ✓ 连接异常自动向高可用 Gemini 降级及并行工具消息规范对齐 — v1.0
 
 ### Active
 
-<!-- Current scope. Building toward these. -->
-
-- [ ] Provider 抽象层：统一接口适配 Gemini (google-genai) 和 OpenAI 兼容 provider
-- [ ] 预置 Provider：Gemini、DeepSeek、Qwen、MiMo，各自内置 base URL
-- [ ] 自定义 OpenAI 兼容 Provider：用户可填入任意 base URL + API Key + 模型名
-- [ ] 前端配置面板改造：Provider 选择、API Key、base URL、模型名称
-- [ ] Function Calling 兼容：统一 tool 定义格式，适配不同 provider 的 function calling 实现
+<!-- Pending next milestone planning -->
+- (暂无，等待规划下一个里程碑)
 
 ### Out of Scope
 
-<!-- Explicit boundaries. Includes reasoning to prevent re-adding. -->
-
-- 不支持 function calling 的模型降级方案 — 当前所有 PS 操作依赖 function calling，降级方案复杂度高
-- 多 provider 同时在线/热切换 — v1 只需在配置面板选择一个 provider 使用
-- Provider 特有高级功能（如 Gemini 的 grounding、DeepSeek 的 reasoning tokens 展示）— 统一接口层不承载差异化功能
+- 不支持 function calling 的模型降级方案 — 所有 PS 操作强依赖 tool use，降级复杂度高
+- 多 provider 同时在线/热切换对话 — v1.0 仅限单例全局配置切换使用
 
 ## Context
 
-- 现有后端完全绑定 `google-genai` SDK，PhotoshopAgent 类中 tool 定义为 Python 方法，由 Gemini 自动推断 schema
-- 其他 provider 使用 OpenAI SDK，tool 定义需要显式 JSON schema 格式
-- 所有 provider 都通过 `/v1/chat/completions` 端点通信（Gemini 除外，保留原生 SDK）
-- 前端配置面板目前只有 API Key 和模型名两个字段
-- 运行环境：Windows + Adobe Photoshop（COM 接口硬依赖）
+- 运行环境：Windows + Adobe Photoshop (COM 接口依赖)
+- SDK 策略：Gemini 走原生 `google-genai`，其他厂商通过 `AsyncOpenAI` 兼容
+- 通信机制：FastAPI + Socket.IO 进行事件握手
+- 已发布版本：v1.0 (多 Provider 支持与安全脱敏配置落盘，R1 实时思考流显示)
 
 ## Constraints
 
@@ -56,42 +50,14 @@
 
 ## Key Decisions
 
-<!-- Decisions that constrain future work. Add throughout project lifecycle. -->
-
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Gemini 保留 google-genai SDK | 已有稳定实现，原生 SDK 功能更完整 | — Pending |
-| 其他 provider 统一用 openai SDK | DeepSeek/Qwen/MiMo 均兼容 OpenAI API 格式，一个 SDK 覆盖所有 | — Pending |
-| 预置 provider 内置 base URL | 降低用户配置门槛，只需填 API Key | — Pending |
-| 只支持有 function calling 能力的模型 | PS 操作完全依赖 tool use，无降级方案 | — Pending |
-
-## Current Milestone: v1.0 多 Provider 支持
-
-**Goal:** 让 PS AI Assistant 支持多个 AI Provider（Gemini、DeepSeek、Qwen、MiMo 及自定义 OpenAI 兼容），用户可在前端配置面板选择和切换。
-
-**Target features:**
-- Provider 抽象层
-- 预置 Provider 接入（Gemini、DeepSeek、Qwen、MiMo）
-- 自定义 OpenAI 兼容 Provider
-- 前端配置面板改造
-- Function Calling 兼容性统一
-
-## Evolution
-
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
+| Gemini 保留 google-genai SDK | 原生 SDK 对新模型功能更完整 | ✓ Good |
+| 其他 provider 统一用 openai SDK | DeepSeek/Qwen/MiMo 均兼容 OpenAI 格式 | ✓ Good |
+| 统一以 OpenAI 格式规范内部消息和 Schema | 最大化降低数据转换复杂度，Provider 自动适配 | ✓ Good |
+| 双向 Key 掩码过滤设计 | 防止网络及文件存盘泄露 API Key，聚焦自动置空利于用户修改 | ✓ Good |
+| 自动降级 Gemini 容错机制 | 第三方服务网络波动时，自动降级回退，保障服务高可用 | ✓ Good |
+| 并行工具及图像剥离重组序列 | 对齐 OpenAI 的 Message Sequence 标准，防范 API 报错 400 | ✓ Good |
 
 ---
-*Last updated: 2026-06-12 after milestone v1.0 initialization*
+*Last updated: 2026-06-12 after milestone v1.0 completion*
