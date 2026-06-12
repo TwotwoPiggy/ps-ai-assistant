@@ -122,16 +122,25 @@ class PhotoshopAgent:
             max_retries = 3
             reply_text = ""
             tool_calls = []
+            primary_error = None
             
             for attempt in range(max_retries):
                 try:
+                    # 定义 R1 推理思维链流式实时回调
+                    async def on_thinking(chunk: str):
+                        if status_callback:
+                            await status_callback("thinking_word", chunk)
+
                     reply_text, tool_calls = await provider.chat(
                         messages=self.conversations[sid],
                         tools=tools_schema,
-                        system_prompt=system_instruction
+                        system_prompt=system_instruction,
+                        on_thinking_callback=on_thinking
                     )
+                    primary_error = None
                     break
                 except Exception as e:
+                    primary_error = e
                     is_rate_limit = False
                     err_msg = str(e)
                     
@@ -148,7 +157,33 @@ class PhotoshopAgent:
                             await status_callback("thinking", f"接口繁忙或受限，将在 {sleep_time} 秒后重试...")
                         await asyncio.sleep(sleep_time)
                     else:
-                        raise e
+                        break
+            
+            if primary_error:
+                # 触发自动降级回退至 Gemini 逻辑
+                auto_fallback = config.get("auto_fallback_to_gemini", True)
+                gemini_key = config.get("providers", {}).get("gemini", {}).get("api_key", "").strip()
+                
+                if auto_fallback and current_provider_name != "gemini" and gemini_key:
+                    if status_callback:
+                        await status_callback("thinking", f"主提供商 ({current_provider_name}) 连接超时或发生异常，正在自动降级回退至 Gemini 运行...")
+                    try:
+                        from backend.providers.gemini import GeminiProvider
+                        gemini_model = config.get("providers", {}).get("gemini", {}).get("model", "gemini-2.5-flash")
+                        fallback_provider = GeminiProvider(api_key=gemini_key, model=gemini_model)
+                        
+                        reply_text, tool_calls = await fallback_provider.chat(
+                            messages=self.conversations[sid],
+                            tools=tools_schema,
+                            system_prompt=system_instruction
+                        )
+                        reply_text = f"【系统提示：由于主模型 {current_provider_name} 连接失败，本轮对话已自动降级由 Gemini 接管处理。】\n\n{reply_text}"
+                        primary_error = None
+                    except Exception as fallback_error:
+                        print(f"[PS-AI] 降级回退至 Gemini 失败: {fallback_error}")
+                        raise primary_error
+                else:
+                    raise primary_error
 
             # 追加 Assistant 消息到历史记录
             assistant_msg = {
@@ -164,6 +199,10 @@ class PhotoshopAgent:
                 if status_callback:
                     await status_callback("done", "完成回复")
                 return reply_text
+
+            # 准备存放此轮工具调用结果的列表，保证多个并行 tool 消息连续追加
+            tool_responses = []
+            img_b64_list = []
 
             # 依次执行工具调用并收集结果
             for tool_call in tool_calls:
@@ -185,25 +224,31 @@ class PhotoshopAgent:
                     del tool_content["imageBase64"]
                     tool_content["message"] = "截图已成功生成，数据已作为随后的图像消息附带发送给您。"
 
-                # 记录 Tool 回复到会话历史
-                self.conversations[sid].append({
+                # 收集 Tool 回复
+                tool_responses.append({
                     "role": "tool",
                     "tool_call_id": tc_id,
                     "name": name,
                     "content": json.dumps(tool_content, ensure_ascii=False)
                 })
 
-                # 如果工具返回了快照图片，为了使所有 Provider (OpenAI/Gemini) 均支持视觉理解，
-                # 我们作为一条独立的 user 角色多模态消息追加至历史记录，供模型下一步决策。
                 if img_b64:
-                    self.conversations[sid].append({
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "（上一步 get_canvas_snapshot 获取的画布最新快照截图）"},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
-                        ]
-                    })
+                    img_b64_list.append(img_b64)
+
+            # 严格对齐 OpenAI 规范：一次性连续追加所有并行的 tool 消息，中途不能穿插 user 或其他消息
+            self.conversations[sid].extend(tool_responses)
+
+            # 所有工具执行结果追加完毕后，若有产生的截图，整体追加在工具响应之后
+            for img_b64 in img_b64_list:
+                self.conversations[sid].append({
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "（上一步 get_canvas_snapshot 获取的画布最新快照截图）"},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}}
+                    ]
+                })
 
         if status_callback:
             await status_callback("done", "AI 回复超时")
         return "抱歉，由于操作步骤过多，AI 回复已超时。"
+
