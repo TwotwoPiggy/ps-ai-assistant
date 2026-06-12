@@ -27,8 +27,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **CONF-01**: 后端 `config.py` 数据结构支持多 Provider 保存（支持旧版配置自动迁移）。
 - [x] **CONF-02**: 后端接口在返回配置到前端时对 API Key 进行脱敏（仅显示前四后四），修复现有明文传输漏洞。
-- [ ] **CONF-03**: 前端配置面板改造：增加 Provider 下拉菜单（Gemini/DeepSeek/Qwen/MiMo/Custom）。
-- [ ] **CONF-04**: 前端配置面板改造：为非自定义的提供商自动填充 Base URL（锁定/隐藏或作为 Placeholder），用户仅需填 API Key 和模型名。
+- [x] **CONF-03**: 前端配置面板改造：增加 Provider 下拉菜单（Gemini/DeepSeek/Qwen/MiMo/Custom）。
+- [x] **CONF-04**: 前端配置面板改造：为非自定义的提供商自动填充 Base URL（锁定/隐藏或作为 Placeholder），用户仅需填 API Key 和模型名。
 
 ## v2 Requirements
 
@@ -65,8 +65,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROV-05 | Phase 2 | Complete |
 | CONF-01 | Phase 1 | Complete |
 | CONF-02 | Phase 1 | Complete |
-| CONF-03 | Phase 3 | Pending |
-| CONF-04 | Phase 3 | Pending |
+| CONF-03 | Phase 3 | Complete |
+| CONF-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 14 total
