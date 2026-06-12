@@ -24,4 +24,12 @@
 - 在本研究里程碑内直接将现有的 pywin32 COM 调用全部删除（需等研究和测试完成、基础骨架和PoC验证后再在下一里程碑进行替换）
 
 ## Traceability
-<!-- Filled by roadmap -->
+
+- **INFRA-01**: Phase 4
+- **INFRA-02**: Phase 4
+- **INFRA-03**: Phase 4
+- **CAP-01**: Phase 5
+- **CAP-02**: Phase 5
+- **CAP-03**: Phase 5
+- **CAP-04**: Phase 6
+- **GUIDE-01**: Phase 6
