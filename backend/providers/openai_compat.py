@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Callable, Awaitable
 from openai import AsyncOpenAI
 from .base import BaseProvider
 
@@ -22,15 +22,15 @@ class OpenAICompatProvider(BaseProvider):
             return False
         # 如果是 qwen 纯文本模型
         if "qwen" in model_lower and "vl" not in model_lower:
-            # 阿里千问普通模型有些不支持多模态，需使用 qwen-vl-* 系列。
-            # 这里保守起见，如果非 vl 系列，则认为不支持 vision
             return False
         return True
 
     async def chat(self, 
                   messages: List[Dict[str, Any]], 
                   tools: List[dict], 
-                  system_prompt: str) -> Tuple[str, List[dict]]:
+                  system_prompt: str,
+                  on_thinking_callback: Callable[[str], Awaitable[None]] = None) -> Tuple[str, List[dict]]:
+
         # 1. 处理消息多模态降级
         processed_messages = []
         
@@ -69,32 +69,73 @@ class OpenAICompatProvider(BaseProvider):
                 
             processed_messages.append(new_msg)
 
-        # 2. 构建 API 参数
+        # 2. 构建 API 参数 (启用流式传输)
         kwargs = {
             "model": self.model,
-            "messages": processed_messages
+            "messages": processed_messages,
+            "stream": True
         }
         
         if tools:
             kwargs["tools"] = tools
 
-        # 3. 发送请求
-        response = await self.client.chat.completions.create(**kwargs)
+        # 3. 发送请求并流式解析
+        response_stream = await self.client.chat.completions.create(**kwargs)
         
-        choice = response.choices[0]
-        reply_text = choice.message.content or ""
+        reply_text_parts = []
+        tool_calls_chunks = {}
+        
+        async for chunk in response_stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+            
+            # 3.1 提取 DeepSeek R1 专属思考字段
+            reasoning = getattr(delta, "reasoning_content", "") or ""
+            if reasoning and on_thinking_callback:
+                await on_thinking_callback(reasoning)
+                
+            # 3.2 提取文本内容
+            content = delta.content or ""
+            if content:
+                reply_text_parts.append(content)
+                
+            # 3.3 提取流式工具调用切片
+            if delta.tool_calls:
+                for tc in delta.tool_calls:
+                    idx = tc.index
+                    if idx not in tool_calls_chunks:
+                        tool_calls_chunks[idx] = {
+                            "id": "",
+                            "name": "",
+                            "arguments": []
+                        }
+                    tc_chunk = tool_calls_chunks[idx]
+                    if tc.id:
+                        tc_chunk["id"] = tc.id
+                    if tc.function:
+                        if tc.function.name:
+                            tc_chunk["name"] = tc.function.name
+                        if tc.function.arguments:
+                            tc_chunk["arguments"].append(tc.function.arguments)
+
+        # 4. 拼装最终结果
+        reply_text = "".join(reply_text_parts)
         
         tool_calls_result = []
-        if choice.message.tool_calls:
-            for tc in choice.message.tool_calls:
+        for idx, tc_data in sorted(tool_calls_chunks.items()):
+            args_str = "".join(tc_data["arguments"])
+            args = {}
+            if args_str:
                 try:
-                    args = json.loads(tc.function.arguments)
+                    args = json.loads(args_str)
                 except Exception:
-                    args = tc.function.arguments
-                tool_calls_result.append({
-                    "id": tc.id,
-                    "name": tc.function.name,
-                    "args": args
-                })
+                    args = args_str
+            tool_calls_result.append({
+                "id": tc_data["id"] or f"call_{idx}",
+                "name": tc_data["name"],
+                "args": args
+            })
                 
         return reply_text, tool_calls_result
+

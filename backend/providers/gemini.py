@@ -1,12 +1,13 @@
 import json
 import base64
 import asyncio
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Callable, Awaitable
 from google import genai
 from google.genai import types
 
 from .base import BaseProvider
 from backend.tools.registry import registry
+
 
 class GeminiProvider(BaseProvider):
     def __init__(self, api_key: str, model: str = 'gemini-2.5-flash'):
@@ -104,8 +105,10 @@ class GeminiProvider(BaseProvider):
     async def chat(self, 
                   messages: List[Dict[str, Any]], 
                   tools: List[dict], 
-                  system_prompt: str) -> Tuple[str, List[dict]]:
+                  system_prompt: str,
+                  on_thinking_callback: Callable[[str], Awaitable[None]] = None) -> Tuple[str, List[dict]]:
         # 1. 转换历史消息为 Gemini 格式
+
         contents = self._convert_messages(messages)
         
         # 2. 转换工具为 Gemini 支持的原生函数列表
