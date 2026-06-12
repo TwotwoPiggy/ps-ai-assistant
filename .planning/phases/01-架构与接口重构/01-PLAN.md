@@ -1,7 +1,7 @@
 # Phase 1 Plan: 架构与接口重构
 
 **Phase Goal:** 建立 BaseProvider 抽象，适配 Gemini 与通用 OpenAI 接口
-**Status:** Planned
+**Status:** Complete
 
 ## 1. 现状分析与实现思路
 
