@@ -10,9 +10,10 @@
 - **INFRA-04**: 设计并验证双引擎架构（策略/适配器模式）的底层解耦方案，确保后续可兼容 COM 和 UXP 双通道
 
 **Success Criteria**:
-- UXP 插件工程基础骨架创建完毕，且能在 Adobe UDT 中顺利加载并运行。
-- FastAPI 后端与 UXP 客户端的 WebSocket (Socket.IO) 能够成功握手并进行双向消息收发。
-- `executeAsModal` 操作队列可正常运行，验证能稳定接收外部请求执行文档修改，且不导致 PS 崩溃或界面长时间卡顿。
+- UXP 插件工程配置完毕，通过 Vite/Webpack 成功打包，且能在 Adobe UDT 中加载运行。
+- 新的 UXP 前端入口能够成功渲染现有的 React UI 组件（多端共存架构）。
+- 插件前端能够作为 UXP 客户端与 FastAPI 后端通过 WebSocket (Socket.IO) 成功握手双向通信。
+- `executeAsModal` 操作队列可正常运行，并能响应后端的操作指令去修改文档状态。
 - 完成双引擎的抽象接口设计（PoC 级别），确认大模型在无需感知底层实现差异的情况下，能顺畅切换底层执行源。
 
 ## Phase 5: 验证核心功能与事件机制 (Core Capability Validation)
