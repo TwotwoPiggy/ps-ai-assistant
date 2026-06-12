@@ -9,11 +9,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Provider Abstraction (架构重构)
 
-- [ ] **ARCH-01**: 从 `agent.py` 抽离 PS 工具逻辑到独立的工具注册表 `tools/ps_tools.py` 中。
-- [ ] **ARCH-02**: 开发 `tools/schema.py` 动态将 Python 工具方法解析为 OpenAI JSON Schema。
-- [ ] **ARCH-03**: 设计并实现 `BaseProvider` 抽象接口，统一化 `chat`, `format_tool_results`, `inject_image`。
-- [ ] **ARCH-04**: 实现 `GeminiProvider` 适配器（保留 `google-genai` SDK 原生功能）。
-- [ ] **ARCH-05**: 实现 `OpenAICompatProvider` 适配器以支持统一的 OpenAI SDK 规范。
+- [x] **ARCH-01**: 从 `agent.py` 抽离 PS 工具逻辑到独立的工具注册表 `tools/ps_tools.py` 中。
+- [x] **ARCH-02**: 开发 `tools/schema.py` 动态将 Python 工具方法解析为 OpenAI JSON Schema。
+- [x] **ARCH-03**: 设计并实现 `BaseProvider` 抽象接口，统一化 `chat`, `format_tool_results`, `inject_image`。
+- [x] **ARCH-04**: 实现 `GeminiProvider` 适配器（保留 `google-genai` SDK 原生功能）。
+- [x] **ARCH-05**: 实现 `OpenAICompatProvider` 适配器以支持统一的 OpenAI SDK 规范。
 
 ### Provider Integration (预置与自定义厂商)
 
@@ -25,8 +25,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Configuration & UI (配置与界面)
 
-- [ ] **CONF-01**: 后端 `config.py` 数据结构支持多 Provider 保存（支持旧版配置自动迁移）。
-- [ ] **CONF-02**: 后端接口在返回配置到前端时对 API Key 进行脱敏（仅显示前四后四），修复现有明文传输漏洞。
+- [x] **CONF-01**: 后端 `config.py` 数据结构支持多 Provider 保存（支持旧版配置自动迁移）。
+- [x] **CONF-02**: 后端接口在返回配置到前端时对 API Key 进行脱敏（仅显示前四后四），修复现有明文传输漏洞。
 - [ ] **CONF-03**: 前端配置面板改造：增加 Provider 下拉菜单（Gemini/DeepSeek/Qwen/MiMo/Custom）。
 - [ ] **CONF-04**: 前端配置面板改造：为非自定义的提供商自动填充 Base URL（锁定/隐藏或作为 Placeholder），用户仅需填 API Key 和模型名。
 
@@ -53,18 +53,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ARCH-01 | Phase 1 | Pending |
-| ARCH-02 | Phase 1 | Pending |
-| ARCH-03 | Phase 1 | Pending |
-| ARCH-04 | Phase 1 | Pending |
-| ARCH-05 | Phase 1 | Pending |
+| ARCH-01 | Phase 1 | Complete |
+| ARCH-02 | Phase 1 | Complete |
+| ARCH-03 | Phase 1 | Complete |
+| ARCH-04 | Phase 1 | Complete |
+| ARCH-05 | Phase 1 | Complete |
 | PROV-01 | Phase 2 | Pending |
 | PROV-02 | Phase 2 | Pending |
 | PROV-03 | Phase 2 | Pending |
 | PROV-04 | Phase 2 | Pending |
 | PROV-05 | Phase 2 | Pending |
-| CONF-01 | Phase 1 | Pending |
-| CONF-02 | Phase 1 | Pending |
+| CONF-01 | Phase 1 | Complete |
+| CONF-02 | Phase 1 | Complete |
 | CONF-03 | Phase 3 | Pending |
 | CONF-04 | Phase 3 | Pending |
 
