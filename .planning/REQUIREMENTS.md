@@ -17,11 +17,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Provider Integration (预置与自定义厂商)
 
-- [ ] **PROV-01**: 支持预置厂商 DeepSeek（`api.deepseek.com`）并处理其 tool choice 怪癖。
-- [ ] **PROV-02**: 支持预置厂商 通义千问 Qwen（`dashscope.aliyuncs.com`）。
-- [ ] **PROV-03**: 支持预置厂商 MiMo（`api.xiaomimimo.com`）。
-- [ ] **PROV-04**: 支持用户配置自定义 OpenAI 兼容 Provider（手动输入 baseUrl + apiKey）。
-- [ ] **PROV-05**: 处理 Providers 的视觉能力差异（拦截不支持视觉的厂商避免崩溃）。
+- [x] **PROV-01**: 支持预置厂商 DeepSeek（`api.deepseek.com`）并 handle 其 tool choice 怪癖。
+- [x] **PROV-02**: 支持预置厂商 通义千问 Qwen（`dashscope.aliyuncs.com`）。
+- [x] **PROV-03**: 支持预置厂商 MiMo（`api.xiaomimimo.com`）。
+- [x] **PROV-04**: 支持用户配置自定义 OpenAI 兼容 Provider（手动输入 baseUrl + apiKey）。
+- [x] **PROV-05**: 处理 Providers 的视觉能力差异（拦截不支持视觉的厂商避免崩溃）。
 
 ### Configuration & UI (配置与界面)
 
@@ -58,11 +58,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ARCH-03 | Phase 1 | Complete |
 | ARCH-04 | Phase 1 | Complete |
 | ARCH-05 | Phase 1 | Complete |
-| PROV-01 | Phase 2 | Pending |
-| PROV-02 | Phase 2 | Pending |
-| PROV-03 | Phase 2 | Pending |
-| PROV-04 | Phase 2 | Pending |
-| PROV-05 | Phase 2 | Pending |
+| PROV-01 | Phase 2 | Complete |
+| PROV-02 | Phase 2 | Complete |
+| PROV-03 | Phase 2 | Complete |
+| PROV-04 | Phase 2 | Complete |
+| PROV-05 | Phase 2 | Complete |
 | CONF-01 | Phase 1 | Complete |
 | CONF-02 | Phase 1 | Complete |
 | CONF-03 | Phase 3 | Pending |
