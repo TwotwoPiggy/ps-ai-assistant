@@ -6,6 +6,7 @@
 - [ ] **INFRA-01**: 搭建 UXP 插件骨架与 manifest.json 声明
 - [ ] **INFRA-02**: 实现 UXP 与 FastAPI 间的 WebSocket (Socket.IO) 双向通信
 - [ ] **INFRA-03**: 实现 UXP 端统一的 `executeAsModal` 操作队列
+- [ ] **INFRA-04**: 设计并验证双引擎架构（策略/适配器模式）的底层解耦方案，确保后续可兼容 COM 和 UXP 双通道
 
 ### 能力探索与操作清单 (Capabilities)
 - [ ] **CAP-01**: 梳理标准 DOM API 边界与 `batchPlay` 调用规范

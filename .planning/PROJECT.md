@@ -68,6 +68,7 @@
 | 双向 Key 掩码过滤设计 | 防止网络及文件存盘泄露 API Key，聚焦自动置空利于用户修改 | ✓ Good |
 | 自动降级 Gemini 容错机制 | 第三方服务网络波动时，自动降级回退，保障服务高可用 | ✓ Good |
 | 并行工具及图像剥离重组序列 | 对齐 OpenAI 的 Message Sequence 标准，防范 API 报错 400 | ✓ Good |
+| 双引擎共存架构 (COM & UXP) | 采用策略/适配器模式解耦底层调用，实现外部 COM 接口与内部 UXP 插件双通道支持，对大模型层透明 | Pending (v1.1) |
 
 ## Evolution
 
