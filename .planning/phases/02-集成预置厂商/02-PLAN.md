@@ -1,7 +1,7 @@
 # Phase 2 Plan: 集成预置厂商
 
 **Phase Goal:** 实现对 DeepSeek, Qwen, MiMo 和自定义厂商的差异化支持及容错
-**Status:** Planned
+**Status:** Complete
 
 ## 1. 现状分析与实现思路
 

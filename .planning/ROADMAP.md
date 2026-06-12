@@ -8,7 +8,7 @@
 | Phase | Name | Goal | Requirements | Success Criteria |
 |-------|------|------|--------------|------------------|
 | 1 | **架构与接口重构** | 1/1 | Complete   | 2026-06-12 |
-| 2 | **集成预置厂商** | 实现对 DeepSeek, Qwen, MiMo 和自定义厂商的差异化支持及容错 | PROV-01, PROV-02, PROV-03, PROV-04, PROV-05 | 3 |
+| 2 | **集成预置厂商** | 1/1 | Complete   | 2026-06-12 |
 | 3 | **前端配置面板改造** | 让用户能在 UI 上直观选择 Provider、填入 API Key 和配置 Base URL | CONF-03, CONF-04 | 3 |
 
 ---

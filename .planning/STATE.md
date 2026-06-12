@@ -2,30 +2,30 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: 多 Provider 支持
-status: executing
-last_updated: "2026-06-12T15:31:00Z"
-last_activity: 2026-06-12 — Phase 2 planned
+status: verifying
+last_updated: "2026-06-12T15:34:00Z"
+last_activity: 2026-06-12 — Phase 2 Plan 2 completed
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 2
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 66
 ---
 
 ## Current Position
 
 Phase: 2 (集成预置厂商)
-Plan: .planning/phases/02-集成预置厂商/02-PLAN.md
-Status: Ready to execute
-Last activity: 2026-06-12 — Phase 2 planned
+Plan: .planning/phases/02-集成预置厂商/02-02-SUMMARY.md
+Status: Ready to verify
+Last activity: 2026-06-12 — Phase 2 Plan 2 completed
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** 用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作。
-**Current focus:** Phase 1 complete. Ready to run verification.
+**Current focus:** Phase 2 complete. Ready to run verification.
 
 ## Accumulated Context
 
@@ -37,6 +37,9 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 - 采用 Strategy + Adapter 模式拆分 Backend
 - 统一使用标准 OpenAI 格式作为全系统内部的消息流与工具描述，由 Provider 自行适配底层
 - 拦截 ai_config 并对密钥脱敏掩码传递 (mask)，防止抓包泄露，同时防范无改动保存覆写 Key
+- 为支持 R1 思维链实时推送，对 OpenAI 兼容 Provider 启用 stream=True 异步提取并在历史记录中剥离
+- 当第三方请求超时/出错时自动降级切换至 Gemini 兜底以保证系统高可用（提供开关控制）
+- 串行执行各并行 tool 调用并依次收集，将所有 tool 回复消息一次性且连续地追加，截图移至最末尾以严格契合 OpenAI 消息序列协议
 
 ### Blockers
 
@@ -45,3 +48,4 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ### Todos
 
 (none)
+
