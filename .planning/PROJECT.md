@@ -8,6 +8,15 @@
 
 用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作。
 
+## Current Milestone: v1.1 研究并整理uxp支持的所有操作有哪些
+
+**Goal:** 研究和整理 Photoshop UXP 插件架构所支持的所有可编程操作和能力范围。
+
+**Target features:**
+- 探索 UXP 支持的操作 API 列表
+- 梳理 UXP 可以实现的图层、画布、文档等功能边界
+- 整理并归档研究结果
+
 ## Requirements
 
 ### Validated
@@ -26,8 +35,9 @@
 
 ### Active
 
-<!-- Pending next milestone planning -->
-- (暂无，等待规划下一个里程碑)
+- 探索 UXP 支持的操作 API 列表
+- 梳理 UXP 可以实现的图层、画布、文档等功能边界
+- 整理并归档研究结果
 
 ### Out of Scope
 
@@ -59,5 +69,22 @@
 | 自动降级 Gemini 容错机制 | 第三方服务网络波动时，自动降级回退，保障服务高可用 | ✓ Good |
 | 并行工具及图像剥离重组序列 | 对齐 OpenAI 的 Message Sequence 标准，防范 API 报错 400 | ✓ Good |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-06-12 after milestone v1.0 completion*
+*Last updated: 2026-06-13 after milestone v1.1 initialization*

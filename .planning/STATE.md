@@ -1,24 +1,24 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: 多 Provider 支持
-status: verifying
-last_updated: "2026-06-12T22:39:00Z"
-last_activity: 2026-06-12 — Phase 3 completed and verified
+milestone: v1.1
+milestone_name: 研究并整理uxp支持的所有操作有哪些
+status: planning
+last_updated: "2026-06-13T00:04:00.000Z"
+last_activity: 2026-06-13
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 ## Current Position
 
-Phase: 3 (前端配置面板改造)
-Plan: .planning/phases/03-前端配置面板改造/03-03-SUMMARY.md
-Status: Execution and Verification Completed
-Last activity: 2026-06-12 — Phase 3 completed and verified
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-13 — Milestone v1.1 started
 
 ## Project Reference
 
@@ -48,4 +48,3 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ### Todos
 
 (none)
-
