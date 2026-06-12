@@ -41,7 +41,12 @@ patterns-established:
   - "Pattern 2: 优雅的高可用临时降级回退控制流。"
   - "Pattern 3: 严格合规的并发工具回复顺序排列协议。"
 
-requirements-completed: []
+requirements-completed:
+  - PROV-01
+  - PROV-02
+  - PROV-03
+  - PROV-04
+  - PROV-05
 
 # Metrics
 duration: 25min

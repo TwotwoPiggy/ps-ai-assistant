@@ -57,6 +57,7 @@ export function ChatPanel() {
     });
     const thinkingRef = useRef("");
     const [currentThinking, setCurrentThinking] = useState("");
+    const [showApiKey, setShowApiKey] = useState(false);
     const [hasKey, setHasKey] = useState(false);
     const [isConfiguring, setIsConfiguring] = useState(false);
     const [statusText, setStatusText] = useState("");
@@ -249,15 +250,31 @@ export function ChatPanel() {
                     </div>
 
                     <label>API Key:</label>
-                    <div className="sdppp-ai-config-input-row">
+                    <div className="sdppp-ai-config-input-row" style={{ position: "relative" }}>
                         <input
-                            type="password"
+                            type={showApiKey ? "text" : "password"}
                             value={providers[currentProvider]?.api_key || ""}
                             onChange={(e) => updateProviderField(currentProvider, "api_key", e.target.value)}
                             onFocus={() => handleKeyFocus(currentProvider, providers[currentProvider]?.api_key || "")}
                             placeholder="保留为空以使用现有 Key"
                             className="sdppp-ai-key-input"
+                            style={{ paddingRight: "30px" }}
                         />
+                        <span 
+                            onClick={() => setShowApiKey(!showApiKey)}
+                            style={{ 
+                                position: "absolute", 
+                                right: "8px", 
+                                top: "50%", 
+                                transform: "translateY(-50%)", 
+                                cursor: "pointer", 
+                                opacity: 0.6,
+                                fontSize: "14px"
+                            }}
+                            title={showApiKey ? "隐藏" : "显示"}
+                        >
+                            {showApiKey ? "👁️" : "🙈"}
+                        </span>
                     </div>
 
                     {(currentProvider === "custom" || currentProvider === "mimo") && (
@@ -277,49 +294,27 @@ export function ChatPanel() {
 
                     <label>选择/输入模型 (Model):</label>
                     <div className="sdppp-ai-config-input-row">
-                        {currentProvider === "custom" ? (
-                            <input
-                                type="text"
-                                value={providers[currentProvider]?.model || ""}
-                                onChange={(e) => updateProviderField(currentProvider, "model", e.target.value)}
-                                placeholder="例如: gpt-4o"
-                                className="sdppp-ai-model-input"
-                            />
-                        ) : (
+                        {currentProvider === "gemini" ? (
                             <select 
                                 value={providers[currentProvider]?.model || ""} 
                                 onChange={(e) => updateProviderField(currentProvider, "model", e.target.value)}
                                 className="sdppp-ai-model-select"
                             >
-                                {currentProvider === "gemini" && (
-                                    <>
-                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                                        <option value="gemini-3-flash">Gemini 3 Flash</option>
-                                        <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                                        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
-                                        <option value="gemma-4-31b-it">Gemma-4-31b-it</option>
-                                        <option value="gemma-4-26b-a4b-it">Gemma-4-26b-a4b-it</option>
-                                    </>
-                                )}
-                                {currentProvider === "deepseek" && (
-                                    <>
-                                        <option value="deepseek-chat">deepseek-chat (V3)</option>
-                                        <option value="deepseek-reasoner">deepseek-reasoner (R1)</option>
-                                    </>
-                                )}
-                                {currentProvider === "qwen" && (
-                                    <>
-                                        <option value="qwen-plus">qwen-plus</option>
-                                        <option value="qwen-max">qwen-max</option>
-                                        <option value="qwen-vl-plus">qwen-vl-plus</option>
-                                    </>
-                                )}
-                                {currentProvider === "mimo" && (
-                                    <>
-                                        <option value="mimo-v1">mimo-v1</option>
-                                    </>
-                                )}
+                                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                <option value="gemini-3-flash">Gemini 3 Flash</option>
+                                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                                <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
+                                <option value="gemma-4-31b-it">Gemma-4-31b-it</option>
+                                <option value="gemma-4-26b-a4b-it">Gemma-4-26b-a4b-it</option>
                             </select>
+                        ) : (
+                            <input
+                                type="text"
+                                value={providers[currentProvider]?.model || ""}
+                                onChange={(e) => updateProviderField(currentProvider, "model", e.target.value)}
+                                placeholder="例如: gpt-4o, deepseek-chat..."
+                                className="sdppp-ai-model-input"
+                            />
                         )}
                         <button onClick={handleSaveConfig} className="sdppp-ai-save-btn">
                             保存配置

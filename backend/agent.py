@@ -56,10 +56,10 @@ class PhotoshopAgent:
                         img_url_data = part.get("image_url", {})
                         url = img_url_data.get("url", "") if isinstance(img_url_data, dict) else part.get("url", "")
                         if len(url) > 1000:
-                            # 替换为占位符
+                            # 替换为纯文本占位符，防止触发 API base64 格式校验错误
                             cleaned_part = {
-                                "type": "image_url",
-                                "image_url": {"url": "data:image/jpeg;base64,...(已过期快照数据已清理)..."}
+                                "type": "text",
+                                "text": "[系统提示：之前的画布快照截图已被清除以释放上下文 Token]"
                             }
                             new_content.append(cleaned_part)
                         else:

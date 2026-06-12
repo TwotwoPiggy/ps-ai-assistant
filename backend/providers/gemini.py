@@ -111,18 +111,20 @@ class GeminiProvider(BaseProvider):
 
         contents = self._convert_messages(messages)
         
-        # 2. 转换工具为 Gemini 支持的原生函数列表
+        # 2. 转换工具为 Gemini 支持的 Tool 声明
         gemini_tools = []
         if tools:
-            # 根据 tool name 从注册表拿到 Python 纯函数
+            func_decls = []
             for tool in tools:
-                name = tool.get("function", {}).get("name")
-                native_func = registry.get_tool(name)
-                if native_func:
-                    # 原生函数调用需要传入 ctx，而 Gemini 的 generate_content 仅负责返回 function_calls，
-                    # 具体的执行由我们自己在 Agent 协调层调用 ToolRegistry.execute_tool 实现。
-                    # 所以我们可以直接把原生函数传进去，Gemini 会根据参数签名推断并生成 schema。
-                    gemini_tools.append(native_func)
+                func_data = tool.get("function", {})
+                
+                func_decls.append(types.FunctionDeclaration(
+                    name=func_data.get("name"),
+                    description=func_data.get("description", ""),
+                    parameters=func_data.get("parameters")
+                ))
+            if func_decls:
+                gemini_tools = [types.Tool(function_declarations=func_decls)]
 
         # 3. 构造 Config
         config = types.GenerateContentConfig()
