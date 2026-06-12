@@ -88,10 +88,16 @@ async def ai_chat(sid, payload={}):
         return
 
     async def status_callback(status, msg):
-        await sio.emit('ai_chat_status', {
-            "status": status,
-            "message": msg
-        }, to=sid)
+        if status == "thinking_word":
+            await sio.emit('ai_chat_thinking', {
+                "word": msg
+            }, to=sid)
+        else:
+            await sio.emit('ai_chat_status', {
+                "status": status,
+                "message": msg
+            }, to=sid)
+
 
     try:
         response = await ai_agent.handle_message(sid, message, status_callback)
