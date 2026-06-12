@@ -10,9 +10,9 @@ last_activity: 2026-06-12 — Roadmap approved
 ## Current Position
 
 Phase: 1 (架构与接口重构)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-06-12 — Phase 1 context gathered
+Plan: .planning/phases/01-架构与接口重构/01-PLAN.md
+Status: Ready to execute
+Last activity: 2026-06-12 — Phase 1 planned
 
 ## Project Reference
 
