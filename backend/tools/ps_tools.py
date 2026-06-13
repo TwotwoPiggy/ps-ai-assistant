@@ -2,7 +2,10 @@ import os
 import time
 import base64
 import tempfile
+import logging
 import win32com.client
+
+logger = logging.getLogger(__name__)
 
 class PhotoshopContext:
     """Photoshop 运行上下文，用于纯函数工具与 Photoshop Agent 共享状态"""
@@ -303,5 +306,18 @@ def flip_image(ctx: PhotoshopContext, direction: str) -> dict:
         doc = ctx.get_doc()
         doc.FlipCanvas(direction_map[direction])
         return {"success": True, "message": f"画布已成功进行了 {direction} 翻转"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def execute_jsx(ctx: PhotoshopContext, jsx_code: str) -> dict:
+    """向 Photoshop 注入并执行一段 JavaScript (JSX) 脚本。
+    
+    Args:
+        jsx_code: 要注入执行的 ExtendScript 脚本代码
+    """
+    try:
+        logger.debug(f"Executing JSX code:\n{jsx_code}")
+        result = ctx.get_app().DoJavaScript(jsx_code)
+        return {"success": True, "result": result}
     except Exception as e:
         return {"success": False, "error": str(e)}

@@ -2,6 +2,8 @@ import { io } from "socket.io-client";
 import { modalQueue } from "./modalQueue";
 import { executeUXPTool } from "./uxpTools";
 
+declare const require: any;
+
 // Connect to the Python backend server
 const SOCKET_URL = "http://127.0.0.1:18919";
 

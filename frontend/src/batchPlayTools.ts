@@ -9,11 +9,11 @@ const photoshop = (() => {
 })();
 
 export const batchPlayTools: Record<string, (args: any) => Promise<any> | any> = {
-  get_layer_tree: async (args) => {
+  get_layer_tree: async (_args) => {
     throw new Error("fallback: get_layer_tree no batchPlay implementation");
   },
 
-  get_canvas_snapshot: async (args) => {
+  get_canvas_snapshot: async (_args) => {
     throw new Error("fallback: get_canvas_snapshot no batchPlay implementation");
   },
 
@@ -59,8 +59,7 @@ export const batchPlayTools: Record<string, (args: any) => Promise<any> | any> =
     return { success: true, message: `[batchPlay] 已将图层可见性设置为 ${visible}` };
   },
 
-  reorder_layer: async (args) => {
-    const { layer_identify, target_identify, placement } = args;
+  reorder_layer: async (_args) => {
     // placeholder for now
     throw new Error("fallback: reorder_layer batchPlay implementation incomplete");
   },
