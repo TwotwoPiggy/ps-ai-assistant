@@ -207,6 +207,12 @@ export function ChatPanel() {
         });
     };
 
+    const handleInterrupt = () => {
+        socket.emit("ai_chat_interrupt");
+        setAiStatus("idle");
+        setStatusText("【已中断】");
+    };
+
     return (
         <div className="sdppp-ai-chat-panel">
             {/* API Config Bar */}
@@ -385,19 +391,30 @@ export function ChatPanel() {
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSend();
+                        if (e.key === "Enter" && aiStatus === "idle") handleSend();
                     }}
                     placeholder={hasKey ? "请输入您对 Photoshop 的指令..." : "请先配置 API Key 以开始聊天"}
                     disabled={!hasKey || aiStatus !== "idle"}
                     className="sdppp-ai-main-input"
                 />
-                <button 
-                    onClick={handleSend}
-                    disabled={!hasKey || aiStatus !== "idle" || !inputValue.trim()}
-                    className="sdppp-ai-send-btn"
-                >
-                    发送
-                </button>
+                {aiStatus === "idle" ? (
+                    <button 
+                        onClick={handleSend}
+                        disabled={!hasKey || !inputValue.trim()}
+                        className="sdppp-ai-send-btn"
+                    >
+                        发送
+                    </button>
+                ) : (
+                    <button 
+                        onClick={handleInterrupt}
+                        className="sdppp-ai-interrupt-btn"
+                        style={{ backgroundColor: "#ef4444", color: "white", minWidth: "60px" }}
+                        title="中断当前对话"
+                    >
+                        中断
+                    </button>
+                )}
             </div>
         </div>
     );

@@ -4,6 +4,7 @@ Photoshop AI Assistant — 独立后端服务器
 默认端口: 18919
 """
 import os
+import asyncio
 import uvicorn
 import socketio
 from pathlib import Path
@@ -82,56 +83,88 @@ async def disconnect(sid):
     print(f"[PS-AI] 客户端已断开: {sid}, 类型: {client_type}")
 
 
+active_chat_tasks = {}
+
 @sio.event
 async def ai_chat(sid, payload={}):
     """处理前端发来的聊天消息"""
-    global ai_agent
+    if sid in active_chat_tasks:
+        active_chat_tasks[sid].cancel()
 
-    # 懒初始化: 第一次收到 ai_chat 时尝试加载配置并创建 Agent
-    if not ai_agent:
-        reload_ai_agent()
+    async def _handle():
+        global ai_agent
+
+        # 懒初始化: 第一次收到 ai_chat 时尝试加载配置并创建 Agent
         if not ai_agent:
-            await sio.emit('ai_chat_response', {
-                "response": "请先在 AI 配置面板中设置您的 API Key 以启用智能助手服务。"
-            }, to=sid)
+            reload_ai_agent()
+            if not ai_agent:
+                await sio.emit('ai_chat_response', {
+                    "response": "请先在 AI 配置面板中设置您的 API Key 以启用智能助手服务。"
+                }, to=sid)
+                return
+
+        message = payload.get("message", "")
+        if not message:
             return
 
-    message = payload.get("message", "")
-    if not message:
-        return
+        async def status_callback(status, msg):
+            if status == "thinking_word":
+                await sio.emit('ai_chat_thinking', {
+                    "word": msg
+                }, to=sid)
+            else:
+                await sio.emit('ai_chat_status', {
+                    "status": status,
+                    "message": msg
+                }, to=sid)
 
-    async def status_callback(status, msg):
-        if status == "thinking_word":
-            await sio.emit('ai_chat_thinking', {
-                "word": msg
+
+        try:
+            client_type = client_types.get(sid, "web")
+            # 寻找是否有已连接的 UXP 客户端
+            uxp_sid = None
+            for s, t in client_types.items():
+                if t == "uxp":
+                    uxp_sid = s
+                    break
+            response = await ai_agent.handle_message(
+                sid, message, status_callback, 
+                client_type=client_type, sio=sio, uxp_sid=uxp_sid
+            )
+            await sio.emit('ai_chat_response', {
+                "response": response
             }, to=sid)
-        else:
-            await sio.emit('ai_chat_status', {
-                "status": status,
-                "message": msg
+        except Exception as e:
+            await sio.emit('ai_chat_response', {
+                "response": f"执行出错: {str(e)}"
             }, to=sid)
+            await status_callback("done", f"执行出错: {str(e)}")
 
-
+    task = asyncio.create_task(_handle())
+    active_chat_tasks[sid] = task
     try:
-        client_type = client_types.get(sid, "web")
-        # 寻找是否有已连接的 UXP 客户端
-        uxp_sid = None
-        for s, t in client_types.items():
-            if t == "uxp":
-                uxp_sid = s
-                break
-        response = await ai_agent.handle_message(
-            sid, message, status_callback, 
-            client_type=client_type, sio=sio, uxp_sid=uxp_sid
-        )
+        await task
+    except asyncio.CancelledError:
+        print(f"[PS-AI] 会话已中断: {sid}")
         await sio.emit('ai_chat_response', {
-            "response": response
+            "response": "【已中断】当前对话已被中止。"
         }, to=sid)
-    except Exception as e:
-        await sio.emit('ai_chat_response', {
-            "response": f"执行出错: {str(e)}"
+        await sio.emit('ai_chat_status', {
+            "status": "done",
+            "message": "已中断"
         }, to=sid)
-        await status_callback("done", f"执行出错: {str(e)}")
+    finally:
+        if active_chat_tasks.get(sid) == task:
+            del active_chat_tasks[sid]
+
+@sio.event
+async def ai_chat_interrupt(sid, payload={}):
+    """中断当前大模型对话"""
+    task = active_chat_tasks.get(sid)
+    if task and not task.done():
+        print(f"[PS-AI] 收到中断请求，正在取消任务: {sid}")
+        task.cancel()
+    return {"success": True}
 
 
 @sio.event

@@ -33,10 +33,15 @@ class GeminiProvider(BaseProvider):
             if tool_calls:
                 for tc in tool_calls:
                     # 转换成 Gemini 的 FunctionCall
-                    parts.append(types.Part.from_function_call(
+                    fc = types.FunctionCall(
                         name=tc.get("name"),
-                        args=tc.get("args")
-                    ))
+                        args=tc.get("args") or {},
+                        id=tc.get("id")
+                    )
+                    part_kwargs = {"function_call": fc}
+                    if "thought_signature" in tc and tc.get("thought_signature"):
+                        part_kwargs["thought_signature"] = tc.get("thought_signature")
+                    parts.append(types.Part(**part_kwargs))
             
             # 2. 处理 content
             if content:
@@ -81,10 +86,15 @@ class GeminiProvider(BaseProvider):
                     except Exception as e:
                         print(f"[GeminiProvider] 解码截图 base64 失败: {e}")
                         
-                parts.append(types.Part.from_function_response(
+                # 获取原始 tool_call_id
+                tool_call_id = msg.get("tool_call_id")
+                
+                fr = types.FunctionResponse(
                     name=name,
-                    response=resp_val
-                ))
+                    response=resp_val,
+                    id=tool_call_id
+                )
+                parts.append(types.Part(function_response=fr))
                 
             # 映射角色类型
             # Gemini 中工具回复也是作为 role="user" 发送
@@ -147,18 +157,21 @@ class GeminiProvider(BaseProvider):
         reply_text = response.text or ""
         tool_calls_result = []
         
-        if response.function_calls:
-            for fc in response.function_calls:
-                args = {}
-                if fc.args:
-                    if hasattr(fc.args, "items"):
-                        args = {k: v for k, v in fc.args.items()}
-                    else:
-                        args = dict(fc.args)
-                tool_calls_result.append({
-                    "id": getattr(fc, "id", None) or f"call_{fc.name}",
-                    "name": fc.name,
-                    "args": args
-                })
+        if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+            for part in response.candidates[0].content.parts:
+                if part.function_call:
+                    fc = part.function_call
+                    args = {}
+                    if fc.args:
+                        if hasattr(fc.args, "items"):
+                            args = {k: v for k, v in fc.args.items()}
+                        else:
+                            args = dict(fc.args)
+                    tool_calls_result.append({
+                        "id": getattr(fc, "id", None) or f"call_{fc.name}",
+                        "name": fc.name,
+                        "args": args,
+                        "thought_signature": getattr(part, "thought_signature", None)
+                    })
                 
         return reply_text, tool_calls_result
