@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Photoshop 核心功能全面 UXP 迁移与重构
 status: verifying
-last_updated: "2026-06-13T10:16:04.089Z"
+last_updated: "2026-06-13T10:33:07.372Z"
 last_activity: 2026-06-13
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 1
   total_plans: 1
   completed_plans: 1
