@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: 研究并整理uxp支持的所有操作有哪些
 status: verifying
-last_updated: "2026-06-13T02:49:02.458Z"
+last_updated: "2026-06-13T06:33:28.003Z"
 last_activity: 2026-06-13
 progress:
   total_phases: 3
