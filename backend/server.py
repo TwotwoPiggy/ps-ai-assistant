@@ -135,6 +135,16 @@ async def ai_chat(sid, payload={}):
 
 
 @sio.event
+async def ps_event(sid, payload={}):
+    """处理前端 UXP 发来的 Photoshop 事件推送"""
+    event_name = payload.get("event")
+    data = payload.get("descriptor", {})
+    print(f"\n[PS-AI] 收到 UXP 事件: {event_name}")
+    print(f"[PS-AI] 事件详情: {data}\n")
+    return {"success": True}
+
+
+@sio.event
 async def ai_clear_history(sid, payload={}):
     """清空用户的历史对话记录"""
     global ai_agent

@@ -1,3 +1,4 @@
+import { batchPlayTools } from './batchPlayTools';
 declare const require: any;
 
 const photoshop = (() => {
@@ -266,7 +267,13 @@ export const uxpTools: Record<string, (args: any) => Promise<any> | any> = {
  * 分发执行 UXP 插件指令
  */
 export async function executeUXPTool(name: string, args: any): Promise<any> {
-  const tool = uxpTools[name];
+  const isBatchPlay = args._use_batchplay === true;
+  let tool = uxpTools[name];
+  
+  if (isBatchPlay && batchPlayTools[name]) {
+    tool = batchPlayTools[name];
+  }
+
   if (!tool) {
     return { success: false, error: `UXP 插件中找不到工具函数 '${name}'` };
   }
@@ -274,6 +281,12 @@ export async function executeUXPTool(name: string, args: any): Promise<any> {
   try {
     return await tool(args);
   } catch (err: any) {
+    if (isBatchPlay && err.message && err.message.includes('fallback:')) {
+      if (uxpTools[name]) {
+        console.warn(`[PS-AI UXP] 工具 ${name} batchPlay 方案不可用，回退至 DOM API`);
+        return await uxpTools[name](args);
+      }
+    }
     return { success: false, error: err.message || err.toString() };
   }
 }

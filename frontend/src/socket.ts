@@ -31,6 +31,14 @@ socket.on("disconnect", () => {
 
 // 在 UXP 插件内，挂载全局 Socket 事件监听，将工具调用派发至 ModalQueue
 if (isUXP) {
+  const photoshop = require('photoshop');
+  
+  // 监听 Photoshop 原生事件
+  photoshop.action.addNotificationListener(['select', 'open', 'close'], (event: string, descriptor: any) => {
+    console.log(`[PS-AI UXP] 监听到原生事件: ${event}`, descriptor);
+    socket.emit("ps_event", { event, descriptor });
+  });
+
   socket.on("execute_tool", async (data, callback) => {
     const { name, args } = data;
     console.log(`[PS-AI UXP] 接收到工具执行请求: ${name}`, args);
