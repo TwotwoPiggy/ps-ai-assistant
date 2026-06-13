@@ -321,3 +321,34 @@ def execute_jsx(ctx: PhotoshopContext, jsx_code: str) -> dict:
         return {"success": True, "result": result}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+def create_document(ctx: PhotoshopContext, width: int, height: int, resolution: float = 72.0, name: str = "New Document") -> dict:
+    """在 Photoshop 中新建一个指定宽高、分辨率和名称的空白文档（画布）。
+    支持在无打开文档的状态下运行。
+    
+    Args:
+        width: 新建文档的宽度 (像素)
+        height: 新建文档的高度 (像素)
+        resolution: 分辨率 (像素/英寸)，默认 72.0
+        name: 文档标题名称，默认 "New Document"
+    """
+    try:
+        app = ctx.get_app()
+        new_doc = app.Documents.Add(width, height, resolution, name)
+        return {"success": True, "message": f"成功创建新文档 '{new_doc.Name}' ({width}x{height} px, {resolution} ppi)"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def open_and_place(ctx: PhotoshopContext, file_path: str) -> dict:
+    """在 Photoshop 中打开指定路径的文件并置入画布中。
+    支持在无打开文档的状态下运行。
+    
+    Args:
+        file_path: 待打开或置入的本地图像文件绝对路径
+    """
+    try:
+        app = ctx.get_app()
+        opened_doc = app.Open(file_path)
+        return {"success": True, "message": f"成功打开并置入文件: '{opened_doc.Name}'"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
