@@ -2,19 +2,15 @@
 
 ## What This Is
 
-一个 Photoshop AI 助手，通过自然语言聊天界面让用户用中文描述操作意图，AI 自动调用 Photoshop COM 接口执行图层管理、画布编辑、亮度对比度调整等操作。支持多种 AI Provider，用户可在前端配置面板灵活选择和切换。
+一个 Photoshop AI 助手，通过自然语言聊天界面让用户用中文描述操作意图，AI 自动调用 Photoshop COM 接口执行图层管理、画布编辑、亮度对比度调整等操作。支持多种 AI Provider，用户可在前端配置面板灵活选择和切换。具备极高的底层稳定性和丰富的操作能力。
 
 ## Core Value
 
-用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作。
+用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作，且过程不依赖易中断的环境，具有生产级的高可用性。
 
-## Current Milestone: v1.2 补全 COM 接口基础能力
+## Current Milestone: 规划下一个 Milestone
 
-**Goal:** 由于用户使用的是精简版 Photoshop 导致 UXP 插件加载异常，现彻底放弃 UXP 架构，全面回归并强化纯 Python COM (Web+COM) 架构。本里程碑将严格对照 COM 全景字典中的分类 1（文档视图）和分类 2（图层编组），完全实现全部 15 项基础操作功能，供后端引擎及大模型随时调用。
-
-**Target features:**
-- 文档与视图增强：实现新建白板、打开置入、保存导出、调整图像大小、色彩模式转换、历史记录撤销重做、视图缩放控制
-- 图层与组的高级操作：实现图层编组、修改透明度与填充、修改混合模式、图层坐标移动、向下合并/合并可见/拼合全图、复制图层、栅格化、智能对象无缝转化
+**Goal:** 探索更多的创意自动化工作流或图像生成能力融合。
 
 ## Requirements
 
@@ -32,13 +28,14 @@
 - ✓ 安全的双向 API Key 掩码及聚焦置空保护交互 — v1.0
 - ✓ 连接异常自动向高可用 Gemini 降级及并行工具消息规范对齐 — v1.0
 - ✓ UXP 方案废弃前探索：完成了 UXP manifest 网络安全权限配置、ModalQueue 操作串行机制以及双引擎策略/适配器抽象层 — v1.1 (Abandon)
+- ✓ 实现文档管理 7 项核心 API (create_document, open_and_place, save_document, resize_image, change_color_mode, history_control, zoom_view) — v1.2
+- ✓ 实现图层进阶操作 8 项核心 API (group_layers, set_layer_opacity_and_fill, set_layer_blend_mode, translate_layer, merge_layers, duplicate_layer, rasterize_layer, convert_to_smart_object) — v1.2
+- ✓ 在 ps_tools 中引入 execute_jsx() 机制以便绕过部分 DOM 限制 — v1.2
+- ✓ 在 agent.py 中将这 15 个功能进行准确的 Schema 注册与系统提示词外置描述 — v1.2
 
 ### Active
 
-- [ ] 实现文档管理 7 项核心 API (create_document, open_and_place, save_document, resize_image, change_color_mode, history_control, zoom_view)
-- [ ] 实现图层进阶操作 8 项核心 API (group_layers, set_layer_opacity_and_fill, set_layer_blend_mode, translate_layer, merge_layers, duplicate_layer, rasterize_layer, convert_to_smart_object)
-- [ ] 在 ps_tools 中引入 execute_jsx() 机制以便绕过部分 DOM 限制
-- [ ] 在 agent.py 中将这 15 个功能进行准确的 Schema 注册与提示词描述
+- (Planning next milestone)
 
 ### Out of Scope
 
@@ -72,6 +69,8 @@
 | 双引擎共存架构 (COM & UXP) | 采用策略/适配器模式解耦底层调用，实现外部 COM 接口与内部 UXP 插件双通道支持，对大模型层透明 | ✓ Good (v1.1) |
 | UXP 开发 4 大铁律 (沙盒隔离/事件防抖/executeAsModal/DOM优先) | 针对 UXP runtime 核心限制的规范定义，集成于 .planning/GEMINI.md 中 | ✓ Good (v1.1) |
 | 11 个核心 DOM 对应工具 Schema | 形成初始 MVP API 并以标准 JSON Schema 导出，供大模型 function calling 使用 | ✓ Good (v1.1) |
+| 引入 JS 层面安全校验拦截空图层操作 | 防止空图层转化为智能对象时，触发 Photoshop 原生弹窗导致 Python 进程永久阻塞 | ✓ Good (v1.2) |
+| 提示词外置 | 将硬编码提示词抽离至 markdown 文件中，支持动态加载热重载与 Fallback | ✓ Good (v1.2) |
 
 ## Evolution
 
@@ -91,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-13 after milestone v1.2 initialization*
+*Last updated: 2026-06-13 after milestone v1.2 completion*

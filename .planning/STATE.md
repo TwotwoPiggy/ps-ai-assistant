@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Photoshop 核心功能全面 UXP 迁移与重构
 status: executing
-last_updated: "2026-06-13T10:48:11.275Z"
-last_activity: 2026-06-13 -- Phase 02 execution started
+last_updated: "2026-06-13T14:33:54.847Z"
+last_activity: 2026-06-13
 progress:
-  total_phases: 2
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 1
-  percent: 50
+  total_phases: 3
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 2
+  percent: 67
 ---
 
 ## Current Position
@@ -18,7 +18,7 @@ progress:
 Phase: 02 (图层进阶操作补全) — EXECUTING
 Plan: 1 of 1
 Status: Executing Phase 02
-Last activity: 2026-06-13 -- Phase 02 execution started
+Last activity: 2026-06-13
 
 ## Project Reference
 
