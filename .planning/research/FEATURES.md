@@ -202,3 +202,51 @@
 | **Qwen (国际)** | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` | [Alibaba Cloud Model Studio](https://modelstudio.console.alibabacloud.com) |
 | **Qwen (国内)** | `https://dashscope.aliyuncs.com/compatible-mode/v1` | [阿里云百炼](https://bailian.console.aliyun.com) |
 | **MiMo** | `https://mimo.xiaomi.com/api` 或 OpenRouter | [MiMo Developer](https://mimo.xiaomi.com) |
+
+---
+
+# UXP 能力与 API 边界研究报告 (UXP Operations Research)
+
+> 研究日期: 2026-06-13
+> 目标: 探索 Photoshop UXP 架构所支持的所有可编程操作和能力范围，评估其作为当前 COM 接口（pywin32）替代或补充的可行性。
+
+## 1. UXP 能力与 API 边界概述 (API Boundaries & Expected Behavior)
+UXP (Unified Extensibility Platform) 是 Adobe 推出的现代插件架构，使用 JavaScript (V8 引擎) 运行环境，提供更安全、跨平台（Windows & macOS）的扩展能力。
+
+- **DOM 抽象层 (Document Object Model)**：提供了对 Document（文档）、Layer（图层）、Group（图层组）的标准面向对象化操作（创建、删除、复制、属性修改）。
+- **BatchPlay API (Action Manager 的桥梁)**：这是 UXP 最核心的能力边界。任何未被标准 DOM 封装的进阶操作（如复杂的滤镜、选区操作、特定的调整图层参数），都可以通过 `batchPlay` 以 JSON 描述符（Descriptors）的形式与 Photoshop 内部引擎直接通信。
+- **事件监听体系 (Event Listeners)**：UXP 能够实时监听 Photoshop 内部的事件触发（如用户切换图层、修改文档名称、选中特定工具等），并予以响应。
+- **沙盒文件系统 (Sandboxed File I/O)**：通过 `uxp.storage` 提供严格受控的文件读写，以及内置了原生的 `fetch` 与 WebSocket API 用于网络通信。
+
+## 2. 功能分类评估 (Feature Categorization)
+
+### 2.1 基础必备功能 (Table Stakes)
+为了对齐当前基于 COM 接口已实现的能力，UXP 必须且能够完全胜任以下操作：
+*   **图层 CRUD 操作**：利用 UXP DOM API，可以轻松实现图层的创建、重命名、隐藏/显示、顺序移动及删除。
+*   **画布基础编辑**：调整画布尺寸、图像翻转与裁剪操作。
+*   **基础图像调整**：增加亮度/对比度等调整图层（主要依赖 `batchPlay` 实现精确参数控制）。
+*   **画布快照抓取 (Canvas Snapshot)**：通过 UXP 将当前视图或图层导出为临时图像文件（PNG/JPEG），用于输送给多模态 AI 进行视觉理解。
+
+### 2.2 核心差异化优势 (Differentiators)
+相较于当前 COM 接口方案，UXP 可以带来的独特增量价值：
+*   **跨平台原生支持**：摆脱 Windows `pywin32` 的硬绑定，实现一次开发，Windows 与 macOS 均可运行。
+*   **原生面板内嵌式集成**：可将当前的 React 聊天面板直接打包为 UXP 面板，与 Photoshop 的原生 UI 无缝融为一体，提升用户体验，而不再是外部的独立悬浮窗。
+*   **实时上下文感知**：通过事件订阅（Event Listeners），AI 助手可以实时感知用户界面的变化，无需主动拉取即可提供上下文精准的 AI 建议。
+*   **执行效率与稳定性**：异步 API (`async/await`) 和 `batchPlay` 相比外部进程的 COM 轮询，具备更快的响应速度和更低的崩溃率。
+
+### 2.3 反模式与避坑指南 (Anti-features / Pitfalls)
+*   **混用 ExtendScript (.jsx)**：极力避免在 UXP 中回调或混用旧版 ExtendScript。混合双引擎将引入严重的性能开销和极难排查的异步时序 Bug。
+*   **在 UXP 端执行重型逻辑或 AI 推理**：UXP 运行时的内存和算力依然受限。不应尝试在 UXP 端本地执行模型处理。UXP 仅仅作为“前端 UI”与“执行终端”，AI 的核心编排与多 Provider 逻辑必须维持在独立运行的 Python/FastAPI 后端。
+*   **越权文件系统读写**：试图绕过沙盒（Sandbox）安全策略去读写不受信的系统任意目录会导致异常，所有快照写入或临时文件管理需严格遵循 UXP 持久化 Token 规范。
+
+## 3. 复杂度与现有功能依赖 (Complexity & Dependencies)
+
+### 3.1 实现复杂度评估 (Complexity)
+1.  **高复杂度 - `batchPlay` 描述符解析**：由于 UXP 现有的 DOM 尚未涵盖 100% 的 PS 功能，许多现有功能（如特定图像调整）必须依赖 `batchPlay`。将原有的 Python 代码翻译为晦涩的 JSON 描述符（如通过 Alchemist 插件逆向获取），是一项巨大的工程量。
+2.  **中复杂度 - IPC 架构重构**：若将执行端由 Python 移至 UXP，现有的系统通信流向需要重塑。需在 UXP 插件与 FastAPI 后端之间建立持久的 WebSocket 双向通信机制。
+3.  **低复杂度 - DOM 基础操作映射**：现存的大多数图层和画布 CRUD 操作能在一对一的 UXP DOM 接口中找到完美平替，转换成本极低。
+
+### 3.2 对现有功能的依赖与影响 (Dependencies on Existing Features)
+1.  **AI Provider 抽象层与配置**：现有的多 Provider 架构、安全验证、API Key 脱敏逻辑完全不受影响，依旧在后端运转。UXP 只负责调用。
+2.  **聊天面板前端**：现存基于 React 的对话界面具备极高的复用性，只需将其构建目标稍作调整，即可作为 UXP 的 WebView 渲染内容。
+3.  **Function Calling Schema (工具定义)**：LLM 返回的工具调用定义保持稳定，仅需将 Tool Call 的物理执行器从 `pywin32` 转移至 UXP 端对应的 JS 函数接口。后端的模型路由与思维链能力可以百分百无缝保留。

@@ -143,6 +143,20 @@ async def ps_event(sid, payload={}):
     print(f"[PS-AI] 事件详情: {data}\n")
     return {"success": True}
 
+@sio.event
+async def debug_execute_tool(sid, payload={}):
+    """用于自动化测试脚本直接触发 UXP 工具执行"""
+    uxp_sid = None
+    for s, t in client_types.items():
+        if t == "uxp":
+            uxp_sid = s
+            break
+    if not uxp_sid:
+        return {"success": False, "error": "没有发现已连接的 UXP 客户端"}
+    
+    # 转发给 UXP
+    result = await sio.call("execute_tool", payload, to=uxp_sid)
+    return result
 
 @sio.event
 async def ai_clear_history(sid, payload={}):
