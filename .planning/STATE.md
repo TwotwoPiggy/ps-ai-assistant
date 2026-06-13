@@ -1,31 +1,31 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: 研究并整理uxp支持的所有操作有哪些
-status: verifying
-last_updated: "2026-06-13T06:33:28.003Z"
+milestone: v1.2
+milestone_name: Photoshop 核心功能全面 UXP 迁移与重构
+status: planning
+last_updated: "2026-06-13T06:40:00.000Z"
 last_activity: 2026-06-13
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 ## Current Position
 
-Phase: 6 (api-research-documentation-guidelines) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
+Phase: 7 — PLANNING
+Plan: 0 of 0
+Status: Milestone completed — planning next milestone
 Last activity: 2026-06-13
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-12)
+See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** 用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作。
-**Current focus:** Phase 6 — api-research-documentation-guidelines
+**Current focus:** Planning next milestone
 
 ## Accumulated Context
 
@@ -40,6 +40,8 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 - 为支持 R1 思维链实时推送，对 OpenAI 兼容 Provider 启用 stream=True 异步提取并在历史记录中剥离
 - 当第三方请求超时/出错时自动降级切换至 Gemini 兜底以保证系统高可用（提供开关控制）
 - 串行执行各并行 tool 调用并依次收集，将所有 tool 回复消息一次性且连续地追加，截图移至最末尾以严格契合 OpenAI 消息序列协议
+- 采用双引擎共存架构 (COM & UXP)，根据客户端在线状态进行运行时透明路由与自动平滑回退，实现前后端解耦
+- 统一制定 UXP 开发 4 大铁律，并通过 .planning/GEMINI.md 将其作为全局 AI Guardrails 硬约束以规范后续开发
 
 ### Blockers
 
