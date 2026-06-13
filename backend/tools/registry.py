@@ -68,3 +68,13 @@ registry.register(ps_tools.resize_image)
 registry.register(ps_tools.change_color_mode)
 registry.register(ps_tools.history_control)
 registry.register(ps_tools.zoom_view)
+
+# 注册图层进阶操作 8 项核心 API
+registry.register(ps_tools.group_layers)
+registry.register(ps_tools.set_layer_opacity_and_fill)
+registry.register(ps_tools.set_layer_blend_mode)
+registry.register(ps_tools.move_layer)
+registry.register(ps_tools.merge_layers)
+registry.register(ps_tools.duplicate_layer)
+registry.register(ps_tools.rasterize_layer)
+registry.register(ps_tools.convert_to_smart_object)
