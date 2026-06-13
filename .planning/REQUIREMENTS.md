@@ -12,10 +12,10 @@
 - [ ] **CAP-01**: 梳理标准 DOM API 边界与 `batchPlay` 调用规范
 - [ ] **CAP-02**: 测试图层 CRUD、画布调整等核心操作的替代方案
 - [ ] **CAP-03**: 测试由 UXP 主动推送 PS 事件（如切换图层）的机制
-- [ ] **CAP-04**: 输出全量的 UXP 支持的 API 操作清单与评估，用于后续决定扩展哪些新 Function
+- [x] **CAP-04**: 输出全量的 UXP 支持的 API 操作清单与评估，用于后续决定扩展哪些新 Function
 
 ### 开发规范 (Guidelines)
-- [ ] **GUIDE-01**: 制定 UXP 开发陷阱的防范规范 (沙盒限制、性能卡顿等)
+- [x] **GUIDE-01**: 制定 UXP 开发陷阱的防范规范 (沙盒限制、性能卡顿等)
 
 ## Future Requirements
 - 扩展更多的 Photoshop 工具方法 (Functions) — 依赖于本里程碑的 CAP-04 研究结果
