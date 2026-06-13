@@ -18,6 +18,7 @@ from .agent import PhotoshopAgent
 # ==========================================
 ai_agent: PhotoshopAgent | None = None
 api_key: str = ""
+client_types: dict[str, str] = {}
 
 def mask_api_key(key: str) -> str:
     """对 API Key 进行脱敏，保留前4位和后4位"""
@@ -60,13 +61,25 @@ sio = socketio.AsyncServer(
 
 
 @sio.event
-async def connect(sid, environ):
-    print(f"[PS-AI] 客户端已连接: {sid}")
+async def connect(sid, environ, auth=None):
+    client_type = "web"
+    if auth and isinstance(auth, dict):
+        client_type = auth.get("client_type", "web")
+    elif environ:
+        import urllib.parse
+        query_string = environ.get('QUERY_STRING', '')
+        params = urllib.parse.parse_qs(query_string)
+        if 'client_type' in params:
+            client_type = params['client_type'][0]
+            
+    client_types[sid] = client_type
+    print(f"[PS-AI] 客户端已连接: {sid}, 类型: {client_type}")
 
 
 @sio.event
 async def disconnect(sid):
-    print(f"[PS-AI] 客户端已断开: {sid}")
+    client_type = client_types.pop(sid, "web")
+    print(f"[PS-AI] 客户端已断开: {sid}, 类型: {client_type}")
 
 
 @sio.event
@@ -100,7 +113,17 @@ async def ai_chat(sid, payload={}):
 
 
     try:
-        response = await ai_agent.handle_message(sid, message, status_callback)
+        client_type = client_types.get(sid, "web")
+        # 寻找是否有已连接的 UXP 客户端
+        uxp_sid = None
+        for s, t in client_types.items():
+            if t == "uxp":
+                uxp_sid = s
+                break
+        response = await ai_agent.handle_message(
+            sid, message, status_callback, 
+            client_type=client_type, sio=sio, uxp_sid=uxp_sid
+        )
         await sio.emit('ai_chat_response', {
             "response": response
         }, to=sid)

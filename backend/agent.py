@@ -6,9 +6,10 @@ import json
 import asyncio
 from typing import List, Dict, Any, Tuple
 
-from backend.tools import PhotoshopContext, registry
+from backend.tools import registry
 from backend.providers import get_provider
 from backend.config import get_ai_config
+from backend.engines import PSEngineBase
 
 class PhotoshopAgent:
     def __init__(self, api_key: str = None, model: str = None):
@@ -22,23 +23,38 @@ class PhotoshopAgent:
         self.model = model
         # 统一存储 OpenAI 格式的历史会话: sid -> list[dict]
         self.conversations: dict[str, list[dict]] = {}
-        # 为每个会话维护独立的 Photoshop 运行上下文
-        self.contexts: dict[str, PhotoshopContext] = {}
+        # 为每个会话维护独立的 Photoshop 运行引擎
+        self.engines: dict[str, PSEngineBase] = {}
 
     def clear_conversations(self, sid: str):
         """清空当前会话的历史聊天记录"""
         if sid in self.conversations:
             self.conversations[sid] = []
-        if sid in self.contexts:
-            # 清空图层映射关系，确保图层树是全新的
-            self.contexts[sid] = PhotoshopContext()
+        if sid in self.engines:
+            self.engines.pop(sid, None)
 
-    def _get_context(self, sid: str) -> PhotoshopContext:
-        if sid not in self.contexts:
-            self.contexts[sid] = PhotoshopContext()
-        return self.contexts[sid]
+    def _get_engine(self, sid: str, client_type: str = "web", sio=None, uxp_sid: str = None) -> PSEngineBase:
+        target_type = "com"
+        active_sid = sid
+        
+        if client_type == "uxp":
+            target_type = "uxp"
+            active_sid = sid
+        elif uxp_sid:
+            target_type = "uxp"
+            active_sid = uxp_sid
+            
+        if active_sid not in self.engines:
+            if target_type == "uxp":
+                from backend.engines import UXPEngine
+                self.engines[active_sid] = UXPEngine(sio, active_sid)
+            else:
+                from backend.engines import COMEngine
+                self.engines[active_sid] = COMEngine()
+                
+        return self.engines[active_sid]
 
-    async def handle_message(self, sid: str, message: str, status_callback=None) -> str:
+    async def handle_message(self, sid: str, message: str, status_callback=None, client_type: str = "web", sio=None, uxp_sid: str = None) -> str:
         """处理来自前端 Chat UI 的用户自然语言消息，返回 AI 回复"""
         
         # 1. 确保会话存在并清理历史超大 base64 图像
@@ -84,7 +100,6 @@ class PhotoshopAgent:
                 prov_conf["model"] = self.model
                 
         provider = get_provider(current_provider_name, config)
-        ctx = self._get_context(sid)
 
         # 3. 追加当前用户的新消息
         self.conversations[sid].append({
@@ -213,8 +228,9 @@ class PhotoshopAgent:
                 if status_callback:
                     await status_callback("executing", f"正在执行 PS 操作: {name}...")
 
-                # 执行工具 (通过注册中心，并传入当前会话的 ctx)
-                result = registry.execute_tool(name, args, ctx)
+                # 获取执行引擎并执行工具
+                engine = self._get_engine(sid, client_type, sio, uxp_sid)
+                result = await engine.execute_tool(name, args)
 
                 # 处理图片数据，剥离超大 base64 字符串以防止污染 tool content
                 tool_content = result.copy() if isinstance(result, dict) else result

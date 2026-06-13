@@ -1,0 +1,40 @@
+{
+  "id": "com.twotwopiggy.psaiassistant",
+  "name": "Photoshop AI Assistant",
+  "version": "1.0.0",
+  "main": "index.html",
+  "manifestVersion": 5,
+  "host": [
+    {
+      "app": "PS",
+      "minVersion": "23.0.0"
+    }
+  ],
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "assistantPanel",
+      "label": {
+        "default": "AI Assistant"
+      },
+      "minimumSize": {
+        "width": 280,
+        "height": 480
+      },
+      "maximumSize": {
+        "width": 2000,
+        "height": 2000
+      },
+      "preferredDockedSize": {
+        "width": 320,
+        "height": 600
+      }
+    }
+  ],
+  "requiredPermissions": {
+    "network": {
+      "domains": "all"
+    },
+    "localFileSystem": "request"
+  }
+}
