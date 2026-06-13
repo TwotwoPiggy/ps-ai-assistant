@@ -110,17 +110,28 @@ class PhotoshopAgent:
         # 4. 获取统一的 OpenAI tools 描述
         tools_schema = registry.get_openai_schemas()
 
-        system_instruction = (
-            "你是一个功能强大的 Photoshop AI 助手，能够直接通过执行 Python COM 操作来修改当前的 Photoshop 文档。\n"
-            "你可以使用一系列定义好的工具（Tools）来完成用户的指令，包含图层基础操作和画布基本编辑。\n"
-            "【操作准则】:\n"
-            "1. 务必始终使用【简体中文】与用户进行回复和交流。\n"
-            "2. 当用户请求任何与图层相关的操作时，你没有默认图层的标识符。你【必须】首先调用 `get_layer_tree` 获取当前图层树以取得目标的 `layer_identify` (如 layer_1)，之后再利用它进行具体操作。不要猜测或使用用户提到的名字作为 ID 传入其他操作参数中。\n"
-            "3. 如果用户发出的指令非常依赖视觉理解（如'把画面变亮点'、'裁剪掉左上角'等），你应该优先调用 `get_canvas_snapshot` 获取当前画面，结合视觉特征后再做出调用工具或回复的判断。\n"
-            "4. 一次回复里，你可以决定调用一个或多个工具。多步操作应当按照合理顺序连贯调用，直到完成指令。\n"
-            "5. 当所有的工具调用执行完毕并得到结果后，你应该将执行情况及最终画布状态汇总成简明且易读的简体中文回复告诉用户。\n"
-            "6. 如果某个操作返回了错误（例如无法调整空白图层的亮度），请在最终回复中诚实告知用户，并提供指导或建议。"
-        )
+        # 动态加载外置系统提示词文件，支持热重载且具备鲁棒的 Fallback 机制
+        prompt_path = os.path.join(os.path.dirname(__file__), "prompts", "system_prompt.md")
+        system_instruction = ""
+        if os.path.exists(prompt_path):
+            try:
+                with open(prompt_path, "r", encoding="utf-8") as f:
+                    system_instruction = f.read()
+            except Exception as e:
+                print(f"[PS-AI] 读取外置提示词文件失败: {e}")
+        
+        if not system_instruction:
+            system_instruction = (
+                "你是一个功能强大的 Photoshop AI 助手，能够直接通过执行 Python COM 操作来修改当前的 Photoshop 文档。\n"
+                "你可以使用一系列定义好的工具（Tools）来完成用户的指令，包含图层基础操作和画布基本编辑。\n"
+                "【操作准则】:\n"
+                "1. 务必始终使用【简体中文】与用户进行回复和交流。\n"
+                "2. 当用户请求任何与图层相关的操作时，你没有默认图层的标识符。你【必须】首先调用 `get_layer_tree` 获取当前图层树以取得目标的 `layer_identify` (如 layer_1)，之后再利用它进行具体操作。不要猜测或使用用户提到的名字作为 ID 传入其他操作参数中。\n"
+                "3. 如果用户发出的指令非常依赖视觉理解（如'把画面变亮点'、'裁剪掉左上角'等），你应该优先调用 `get_canvas_snapshot` 获取当前画面，结合视觉特征后再做出调用工具或回复的判断。\n"
+                "4. 一次回复里，你可以决定调用一个或多个工具。多步操作应当按照合理顺序连贯调用，直到完成指令。\n"
+                "5. 当所有的工具调用执行完毕并得到结果后，你应该将执行情况及最终画布状态汇总成简明且易读的简体中文回复告诉用户。\n"
+                "6. 如果某个操作返回了错误（例如无法调整空白图层的亮度），请在最终回复中诚实告知用户，并提供指导或建议。"
+            )
 
         max_turns = 10
         turn = 0

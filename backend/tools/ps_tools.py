@@ -727,14 +727,27 @@ def convert_to_smart_object(ctx: PhotoshopContext, layer_name: str = None) -> di
         jsx_code = """
         var layer = app.activeDocument.activeLayer;
         if (layer.kind != LayerKind.SMARTOBJECT) {
+            var isEmpty = false;
+            try {
+                var b = layer.bounds;
+                if (b[0].value == 0 && b[1].value == 0 && b[2].value == 0 && b[3].value == 0) {
+                    isEmpty = true;
+                }
+            } catch(e) {
+                isEmpty = true;
+            }
+            if (isEmpty) {
+                throw new Error("EMPTY_LAYER_ERROR");
+            }
             executeAction(stringIDToTypeID("newPlacedLayer"), undefined, DialogModes.NO);
         }
         """
         res = execute_jsx(ctx, jsx_code)
         if not res["success"]:
             err_msg = res.get("error", "").lower()
-            if "空" in err_msg or "empty" in err_msg or "bounds" in err_msg or "矩形" in err_msg or "not currently available" in err_msg or "不可用" in err_msg:
-                return {"success": True, "message": f"图层 '{layer.Name}' 为空图层或已经是智能对象，无需转换，已自动忽略。"}
+            if "empty_layer_error" in err_msg or "空" in err_msg or "empty" in err_msg or "bounds" in err_msg:
+                # 明确向 AI 报告错误，引导 AI 提示用户，而不是静默成功，防止后续操作基于错误的智能对象假设
+                return {"success": False, "error": f"无法将空图层 '{layer.Name}' 转换为智能对象。请先在图层上添加可见的像素内容。"}
             raise Exception(res.get("error", "JSX 执行失败"))
             
         return {"success": True, "message": f"成功将图层 '{layer.Name}' 转换为智能对象"}
