@@ -8,15 +8,13 @@
 
 用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作。
 
-## Current Milestone: v1.2 Photoshop 核心功能全面 UXP 迁移与重构
+## Current Milestone: v1.2 补全 COM 接口基础能力
 
-**Goal:** 逐步将原有的 pywin32 COM 调用接口全量替换为 UXP 通道，实现完整的跨平台 Photoshop AI 助手重构。
+**Goal:** 由于用户使用的是精简版 Photoshop 导致 UXP 插件加载异常，现彻底放弃 UXP 架构，全面回归并强化纯 Python COM (Web+COM) 架构。本里程碑将严格对照 COM 全景字典中的分类 1（文档视图）和分类 2（图层编组），完全实现全部 15 项基础操作功能，供后端引擎及大模型随时调用。
 
 **Target features:**
-- 全量移植图层树获取、图层 CRUD 和画布调整等现有核心操作到 UXP 接口
-- 实现更加精细的多会话和客户端连接路由，确保客户端异常离线时的平滑退回与安全处理
-- 全面适配 UXP 前端通信防抖，防范事件监听推送机制在 Photoshop 高频操作下产生的事件风暴
-- 清理并完全移除 pywin32 COM 的硬依赖，实现与 Photoshop 本地宿主进程的彻底解耦
+- 文档与视图增强：实现新建白板、打开置入、保存导出、调整图像大小、色彩模式转换、历史记录撤销重做、视图缩放控制
+- 图层与组的高级操作：实现图层编组、修改透明度与填充、修改混合模式、图层坐标移动、向下合并/合并可见/拼合全图、复制图层、栅格化、智能对象无缝转化
 
 ## Requirements
 
@@ -33,33 +31,26 @@
 - ✓ 自定义 OpenAI 兼容 Provider（手动填入 Base URL 与模型名称） — v1.0
 - ✓ 安全的双向 API Key 掩码及聚焦置空保护交互 — v1.0
 - ✓ 连接异常自动向高可用 Gemini 降级及并行工具消息规范对齐 — v1.0
-- ✓ 搭建 UXP 插件骨架与 manifest 网络安全权限配置 — v1.1
-- ✓ 实现 UXP 前端 ModalQueue 操作串行机制与 Socket 实时长连接 — v1.1
-- ✓ 实现双引擎策略/适配器抽象层及客户端在线自动动态路由路由决策 — v1.1
-- ✓ 验证 11 个高频核心工具方法在 UXP DOM 与 batchPlay 的对比 PoC — v1.1
-- ✓ 完成 Photoshop 操作事件反向毫秒级捕获监听及推送日志链路 — v1.1
-- ✓ 制定 UXP 沙箱/防抖/并发铁律并集成至 AI Guide 配置文件 — v1.1
+- ✓ UXP 方案废弃前探索：完成了 UXP manifest 网络安全权限配置、ModalQueue 操作串行机制以及双引擎策略/适配器抽象层 — v1.1 (Abandon)
 
 ### Active
 
-- [ ] 全面封装并移植 11 项图层及画布核心工具方法至 UXP 实现，并在插件端通过 ModalQueue 承载
-- [ ] 优化 Socket 事件推送，在 UXP 侧引入图层和文档切换的防抖 (Debounce) 以防事件风暴
-- [ ] 后端完善 Session/Client 多会话机制，隔离多端或重复连接的操作指令
-- [ ] 安全移除本地 pywin32 与 COM 环境硬依赖，交付独立的跨平台 UXP + Backend 架构
-
+- [ ] 实现文档管理 7 项核心 API (create_document, open_and_place, save_document, resize_image, change_color_mode, history_control, zoom_view)
+- [ ] 实现图层进阶操作 8 项核心 API (group_layers, set_layer_opacity_and_fill, set_layer_blend_mode, translate_layer, merge_layers, duplicate_layer, rasterize_layer, convert_to_smart_object)
+- [ ] 在 ps_tools 中引入 execute_jsx() 机制以便绕过部分 DOM 限制
+- [ ] 在 agent.py 中将这 15 个功能进行准确的 Schema 注册与提示词描述
 
 ### Out of Scope
 
+- 废弃所有关于 UXP 插件迁移的计划：因目标环境 (免安装版 Photoshop 2026) 精简了 UXP 验证与加载引擎，强行挂载会引发白屏或拉黑，故全面退回 Web+COM 方案。
 - 不支持 function calling 的模型降级方案 — 所有 PS 操作强依赖 tool use，降级复杂度高
 - 多 provider 同时在线/热切换对话 — v1.0 仅限单例全局配置切换使用
 
 ## Context
 
-- 运行环境：Windows + Adobe Photoshop (COM 接口依赖，下一里程碑重构为跨平台 UXP 通道)
-- SDK 策略：Gemini 走原生 `google-genai`，其他厂商通过 `AsyncOpenAI` 兼容
-- 通信机制：FastAPI + Socket.IO 进行事件握手
-- 已发布版本：v1.1 (UXP 插件基础底座搭建，WebSocket 双引擎指令透明路由，核心工具 API 清单及大模型铁律指南)
-- 架构状态：已成功验证 UXP DOM / batchPlay 混合执行与双引擎动态回退 PoC，具备完全移除 pywin32 COM 依赖的重构前提
+- 运行环境：Windows + Adobe Photoshop (通过 win32com 进行本地化控制)
+- 架构调整：彻底抛弃 UXP 插件思路，用户仅需在浏览器打开 Web UI，通过 Socket 与 Python 后端通信，由后端 COM 接管 PS。
+- 核心突破：引入 `ps_app.DoJavaScript()` 后门能力，确保 COM 可以实现所有原先只有 UXP batchPlay 能完成的操作。
 
 ## Constraints
 
