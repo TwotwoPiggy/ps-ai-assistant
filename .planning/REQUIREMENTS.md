@@ -3,13 +3,13 @@
 ## Active
 
 ### 文档管理 (Document)
-- [ ] **DOC-01**: 实现 `create_document` 工具，允许 AI 指定宽高和背景色新建白板。
-- [ ] **DOC-02**: 实现 `open_and_place` 工具，允许 AI 打开指定本地路径的图像。
-- [ ] **DOC-03**: 实现 `save_document` 工具，允许 AI 保存 PSD 或导出常用图片格式。
-- [ ] **DOC-04**: 实现 `resize_image` 工具，允许 AI 有损/无损缩放图像本身（非画布尺寸）。
-- [ ] **DOC-05**: 实现 `change_color_mode` 工具，允许 AI 在 RGB/CMYK/灰度间切换。
-- [ ] **DOC-06**: 实现 `history_control` 工具，允许 AI 回退撤销操作。
-- [ ] **DOC-07**: 实现 `zoom_view` 工具，允许 AI 改变画布缩放比例（100%、适应屏幕）。
+- [x] **DOC-01**: 实现 `create_document` 工具，允许 AI 指定宽高和背景色新建白板。
+- [x] **DOC-02**: 实现 `open_and_place` 工具，允许 AI 打开指定本地路径的图像。
+- [x] **DOC-03**: 实现 `save_document` 工具，允许 AI 保存 PSD 或导出常用图片格式。
+- [x] **DOC-04**: 实现 `resize_image` 工具，允许 AI 有损/无损缩放图像本身（非画布尺寸）。
+- [x] **DOC-05**: 实现 `change_color_mode` 工具，允许 AI 在 RGB/CMYK/灰度间切换。
+- [x] **DOC-06**: 实现 `history_control` 工具，允许 AI 回退撤销操作。
+- [x] **DOC-07**: 实现 `zoom_view` 工具，允许 AI 改变画布缩放比例（100%、适应屏幕）。
 
 ### 图层进阶 (Layers)
 - [ ] **LYR-01**: 实现 `group_layers` 工具，允许 AI 将特定图层建立分组。
@@ -22,7 +22,7 @@
 - [ ] **LYR-08**: 实现 `convert_to_smart_object` 工具，允许 AI 将图层转为智能对象（使用 JSX 后门）。
 
 ### 架构适配 (Architecture)
-- [ ] **ARC-01**: 在后端 `ps_tools` 中添加 `execute_jsx()` 包装层用于执行 ActionManager 级代码。
+- [x] **ARC-01**: 在后端 `ps_tools` 中添加 `execute_jsx()` 包装层用于执行 ActionManager 级代码。
 - [ ] **ARC-02**: 在提示词和 Schema 中精准暴露所有这 15 个能力，消除语义重叠。
 
 ## Future Requirements
