@@ -434,3 +434,35 @@ def change_color_mode(ctx: PhotoshopContext, mode: str) -> dict:
         except Exception:
             pass
         return {"success": False, "error": str(e)}
+
+def history_control(ctx: PhotoshopContext) -> dict:
+    """撤销上一步在 Photoshop 中执行的操作。
+    """
+    try:
+        app = ctx.get_app()
+        app.DoJavaScript("app.runMenuItem(charIDToTypeID('undo'));")
+        return {"success": True, "message": "成功执行撤销 (Undo) 操作"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def zoom_view(ctx: PhotoshopContext, action: str) -> dict:
+    """调整当前 Photoshop 文档的画布视图缩放比例。
+    
+    Args:
+        action: 缩放行为。支持的值有：
+                - '100%': 缩放到实际像素大小
+                - 'fit': 适合屏幕大小
+    """
+    try:
+        app = ctx.get_app()
+        if action == '100%':
+            app.DoJavaScript("app.runMenuItem(stringIDToTypeID('actualPixels'));")
+            msg = "实际像素 (100%)"
+        elif action == 'fit':
+            app.DoJavaScript("app.runMenuItem(stringIDToTypeID('fitOnScreen'));")
+            msg = "适合屏幕"
+        else:
+            return {"success": False, "error": f"不支持的缩放指令 '{action}'。只支持 '100%' 和 'fit'。"}
+        return {"success": True, "message": f"视图已成功调整为 {msg}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
