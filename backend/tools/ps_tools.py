@@ -352,3 +352,32 @@ def open_and_place(ctx: PhotoshopContext, file_path: str) -> dict:
         return {"success": True, "message": f"成功打开并置入文件: '{opened_doc.Name}'"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+def save_document(ctx: PhotoshopContext, file_path: str = None) -> dict:
+    """保存当前活动的 Photoshop 文档。
+    
+    Args:
+        file_path: 可选。保存的目标绝对文件路径。
+                   如果未提供，且文档是新建未曾存盘的，则会自动以 ps_ai_export_{时间戳}.psd 命名保存至用户的系统桌面。
+    """
+    try:
+        doc = ctx.get_doc()
+        if not file_path:
+            try:
+                # 获取当前文档已有关联 the 物理文件路径
+                file_path = str(doc.FullName)
+            except Exception:
+                file_path = ""
+            
+            # 如果没有关联路径（新建文档，FullName 不可达或不是绝对路径）
+            if not file_path or not os.path.isabs(file_path):
+                desktop = os.path.expanduser("~/Desktop")
+                timestamp = int(time.time())
+                file_path = os.path.join(desktop, f"ps_ai_export_{timestamp}.psd")
+        
+        # 统一规范化路径格式
+        file_path = os.path.abspath(file_path)
+        doc.SaveAs(file_path)
+        return {"success": True, "message": f"文档已成功保存至: '{file_path}'"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
