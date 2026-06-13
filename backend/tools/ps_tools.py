@@ -10,13 +10,16 @@ class PhotoshopContext:
         self.layer_id_map = layer_id_map if layer_id_map is not None else {}
         self.next_id_val = next_id_val
 
-    def get_doc(self):
+    def get_app(self):
         try:
             import pythoncom
             pythoncom.CoInitialize()
         except Exception:
             pass
-        ps_app = win32com.client.Dispatch("Photoshop.Application")
+        return win32com.client.Dispatch("Photoshop.Application")
+
+    def get_doc(self):
+        ps_app = self.get_app()
         if ps_app.Documents.Count == 0:
             raise Exception("当前 Photoshop 中没有打开的文档，请先在 Photoshop 中打开或创建一个文档。")
         return ps_app.ActiveDocument
