@@ -1,0 +1,134 @@
+[
+  {
+    "tool": "get_layer_tree",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true, "layers": []}
+  },
+  {
+    "tool": "get_layer_tree",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true, "message": "Fallback to DOM API triggered"}
+  },
+  {
+    "tool": "get_canvas_snapshot",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true, "imageBase64": "..."}
+  },
+  {
+    "tool": "get_canvas_snapshot",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true, "message": "Fallback to DOM API triggered"}
+  },
+  {
+    "tool": "create_layer",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "create_layer",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "rename_layer",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "rename_layer",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "set_layer_visibility",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "set_layer_visibility",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "reorder_layer",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "reorder_layer",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true, "message": "Fallback triggered"}
+  },
+  {
+    "tool": "adjust_brightness_contrast",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "adjust_brightness_contrast",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "crop_canvas",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "crop_canvas",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "resize_canvas",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "resize_canvas",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "flip_image",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "flip_image",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "delete_layer",
+    "mode": "DOM API",
+    "success": true,
+    "result": {"success": true}
+  },
+  {
+    "tool": "delete_layer",
+    "mode": "batchPlay",
+    "success": true,
+    "result": {"success": true}
+  }
+]
