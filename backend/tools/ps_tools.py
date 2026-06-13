@@ -381,3 +381,56 @@ def save_document(ctx: PhotoshopContext, file_path: str = None) -> dict:
         return {"success": True, "message": f"文档已成功保存至: '{file_path}'"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+def resize_image(ctx: PhotoshopContext, width: int, height: int) -> dict:
+    """调整当前 Photoshop 图像的物理尺寸大小。
+    
+    Args:
+        width: 目标图像的宽度 (像素)
+        height: 目标图像的高度 (像素)
+    """
+    try:
+        doc = ctx.get_doc()
+        doc.ResizeImage(width, height)
+        return {"success": True, "message": f"图像物理尺寸已成功调整为 {width}x{height}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def change_color_mode(ctx: PhotoshopContext, mode: str) -> dict:
+    """更改当前活动的 Photoshop 文档的色彩模式。
+    
+    执行此工具前，必须先在聊天界面提示用户即将进行色彩转换，等待用户明确回复『允许 (allow)』后才可调用。
+    
+    Args:
+        mode: 目标色彩模式。可选值包括: 'RGB', 'CMYK', 'Grayscale', 'Lab'。
+    """
+    mode_map = {
+        "grayscale": 1,
+        "gray": 1,
+        "rgb": 2,
+        "cmyk": 3,
+        "lab": 4
+    }
+    target_mode = mode.lower().strip()
+    if target_mode not in mode_map:
+        return {"success": False, "error": f"不支持的色彩模式 '{mode}'。可选模式有: 'RGB', 'CMYK', 'Grayscale', 'Lab'。"}
+        
+    try:
+        app = ctx.get_app()
+        # 备份原先的弹窗设置
+        orig_dialogs = app.DisplayDialogs
+        # 设置为 psDisplayNoDialogs = 3 以拦截所有警告弹窗
+        app.DisplayDialogs = 3
+        
+        doc = ctx.get_doc()
+        doc.ChangeMode(mode_map[target_mode])
+        
+        # 还原弹窗设置
+        app.DisplayDialogs = orig_dialogs
+        return {"success": True, "message": f"成功将色彩模式转换为 {mode.upper()}"}
+    except Exception as e:
+        try:
+            app.DisplayDialogs = orig_dialogs
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
