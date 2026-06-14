@@ -6,7 +6,7 @@
 
 | # | Phase | Goal | Requirements | Success Criteria |
 |---|-------|------|--------------|------------------|
-| 08 | 客户端生命周期管理 (Lifecycle Management) | 为应用提供一键式的独立安装、平滑更新与干净的卸载流程 | INST-01, UPD-01, UNINST-01 | 3 |
+| 08 | 客户端生命周期管理 (Lifecycle Management) | 1/1 | Complete   | 2026-06-14 |
 
 ### Phase Details
 
