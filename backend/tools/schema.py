@@ -82,6 +82,9 @@ def python_method_to_openai_schema(func) -> dict:
             "description": param_desc
         }
         
+        if json_type == "array":
+            properties[param_name]["items"] = {"type": "string"}
+        
         # 是否必填
         if param.default is inspect.Parameter.empty:
             required.append(param_name)

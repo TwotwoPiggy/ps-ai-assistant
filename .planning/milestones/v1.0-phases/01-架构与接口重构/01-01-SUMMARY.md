@@ -47,7 +47,14 @@ patterns-established:
   - "Pattern 1: 纯函数工具解耦，利用 Context 跨线程传递共享 Photoshop COM 对象状态。"
   - "Pattern 2: 自动生成 JSON Schema，省去手动编写大块工具定义的时间和错误率。"
 
-requirements-completed: []
+requirements-completed:
+  - ARCH-01
+  - ARCH-02
+  - ARCH-03
+  - ARCH-04
+  - ARCH-05
+  - CONF-01
+  - CONF-02
 
 # Metrics
 duration: 45min

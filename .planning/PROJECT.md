@@ -8,11 +8,17 @@
 
 用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作。
 
+## Current Milestone: v1.2 补全 COM 接口基础能力
+
+**Goal:** 由于用户使用的是精简版 Photoshop 导致 UXP 插件加载异常，现彻底放弃 UXP 架构，全面回归并强化纯 Python COM (Web+COM) 架构。本里程碑将严格对照 COM 全景字典中的分类 1（文档视图）和分类 2（图层编组），完全实现全部 15 项基础操作功能，供后端引擎及大模型随时调用。
+
+**Target features:**
+- 文档与视图增强：实现新建白板、打开置入、保存导出、调整图像大小、色彩模式转换、历史记录撤销重做、视图缩放控制
+- 图层与组的高级操作：实现图层编组、修改透明度与填充、修改混合模式、图层坐标移动、向下合并/合并可见/拼合全图、复制图层、栅格化、智能对象无缝转化
+
 ## Requirements
 
 ### Validated
-
-<!-- Shipped and confirmed valuable. -->
 
 - ✓ 用户可通过聊天界面发送自然语言指令操控 Photoshop — v0 (existing)
 - ✓ AI 可获取图层树并进行图层 CRUD 操作 — v0 (existing)
@@ -20,32 +26,31 @@
 - ✓ AI 可调整亮度对比度、裁剪画布、调整画布尺寸、翻转图像 — v0 (existing)
 - ✓ 前端 React 聊天面板 + Socket.IO 实时通信 — v0 (existing)
 - ✓ API Key 和模型名称可通过配置面板保存 — v0 (existing)
+- ✓ 多 Provider 抽象层（支持 Gemini SDK 与 OpenAI SDK 双通道） — v1.0
+- ✓ 预置提供商集成（DeepSeek R1 推理思维链展示、Qwen、MiMo） — v1.0
+- ✓ 自定义 OpenAI 兼容 Provider（手动填入 Base URL 与模型名称） — v1.0
+- ✓ 安全的双向 API Key 掩码及聚焦置空保护交互 — v1.0
+- ✓ 连接异常自动向高可用 Gemini 降级及并行工具消息规范对齐 — v1.0
+- ✓ UXP 方案废弃前探索：完成了 UXP manifest 网络安全权限配置、ModalQueue 操作串行机制以及双引擎策略/适配器抽象层 — v1.1 (Abandon)
 
 ### Active
 
-<!-- Current scope. Building toward these. -->
-
-- [ ] Provider 抽象层：统一接口适配 Gemini (google-genai) 和 OpenAI 兼容 provider
-- [ ] 预置 Provider：Gemini、DeepSeek、Qwen、MiMo，各自内置 base URL
-- [ ] 自定义 OpenAI 兼容 Provider：用户可填入任意 base URL + API Key + 模型名
-- [ ] 前端配置面板改造：Provider 选择、API Key、base URL、模型名称
-- [ ] Function Calling 兼容：统一 tool 定义格式，适配不同 provider 的 function calling 实现
+- [ ] 实现文档管理 7 项核心 API (create_document, open_and_place, save_document, resize_image, change_color_mode, history_control, zoom_view)
+- [ ] 实现图层进阶操作 8 项核心 API (group_layers, set_layer_opacity_and_fill, set_layer_blend_mode, translate_layer, merge_layers, duplicate_layer, rasterize_layer, convert_to_smart_object)
+- [ ] 在 ps_tools 中引入 execute_jsx() 机制以便绕过部分 DOM 限制
+- [ ] 在 agent.py 中将这 15 个功能进行准确的 Schema 注册与提示词描述
 
 ### Out of Scope
 
-<!-- Explicit boundaries. Includes reasoning to prevent re-adding. -->
-
-- 不支持 function calling 的模型降级方案 — 当前所有 PS 操作依赖 function calling，降级方案复杂度高
-- 多 provider 同时在线/热切换 — v1 只需在配置面板选择一个 provider 使用
-- Provider 特有高级功能（如 Gemini 的 grounding、DeepSeek 的 reasoning tokens 展示）— 统一接口层不承载差异化功能
+- 废弃所有关于 UXP 插件迁移的计划：因目标环境 (免安装版 Photoshop 2026) 精简了 UXP 验证与加载引擎，强行挂载会引发白屏或拉黑，故全面退回 Web+COM 方案。
+- 不支持 function calling 的模型降级方案 — 所有 PS 操作强依赖 tool use，降级复杂度高
+- 多 provider 同时在线/热切换对话 — v1.0 仅限单例全局配置切换使用
 
 ## Context
 
-- 现有后端完全绑定 `google-genai` SDK，PhotoshopAgent 类中 tool 定义为 Python 方法，由 Gemini 自动推断 schema
-- 其他 provider 使用 OpenAI SDK，tool 定义需要显式 JSON schema 格式
-- 所有 provider 都通过 `/v1/chat/completions` 端点通信（Gemini 除外，保留原生 SDK）
-- 前端配置面板目前只有 API Key 和模型名两个字段
-- 运行环境：Windows + Adobe Photoshop（COM 接口硬依赖）
+- 运行环境：Windows + Adobe Photoshop (通过 win32com 进行本地化控制)
+- 架构调整：彻底抛弃 UXP 插件思路，用户仅需在浏览器打开 Web UI，通过 Socket 与 Python 后端通信，由后端 COM 接管 PS。
+- 核心突破：引入 `ps_app.DoJavaScript()` 后门能力，确保 COM 可以实现所有原先只有 UXP batchPlay 能完成的操作。
 
 ## Constraints
 
@@ -56,25 +61,17 @@
 
 ## Key Decisions
 
-<!-- Decisions that constrain future work. Add throughout project lifecycle. -->
-
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Gemini 保留 google-genai SDK | 已有稳定实现，原生 SDK 功能更完整 | — Pending |
-| 其他 provider 统一用 openai SDK | DeepSeek/Qwen/MiMo 均兼容 OpenAI API 格式，一个 SDK 覆盖所有 | — Pending |
-| 预置 provider 内置 base URL | 降低用户配置门槛，只需填 API Key | — Pending |
-| 只支持有 function calling 能力的模型 | PS 操作完全依赖 tool use，无降级方案 | — Pending |
-
-## Current Milestone: v1.0 多 Provider 支持
-
-**Goal:** 让 PS AI Assistant 支持多个 AI Provider（Gemini、DeepSeek、Qwen、MiMo 及自定义 OpenAI 兼容），用户可在前端配置面板选择和切换。
-
-**Target features:**
-- Provider 抽象层
-- 预置 Provider 接入（Gemini、DeepSeek、Qwen、MiMo）
-- 自定义 OpenAI 兼容 Provider
-- 前端配置面板改造
-- Function Calling 兼容性统一
+| Gemini 保留 google-genai SDK | 原生 SDK 对新模型功能更完整 | ✓ Good |
+| 其他 provider 统一用 openai SDK | DeepSeek/Qwen/MiMo 均兼容 OpenAI 格式 | ✓ Good |
+| 统一以 OpenAI 格式规范内部消息和 Schema | 最大化降低数据转换复杂度，Provider 自动适配 | ✓ Good |
+| 双向 Key 掩码过滤设计 | 防止网络及文件存盘泄露 API Key，聚焦自动置空利于用户修改 | ✓ Good |
+| 自动降级 Gemini 容错机制 | 第三方服务网络波动时，自动降级回退，保障服务高可用 | ✓ Good |
+| 并行工具及图像剥离重组序列 | 对齐 OpenAI 的 Message Sequence 标准，防范 API 报错 400 | ✓ Good |
+| 双引擎共存架构 (COM & UXP) | 采用策略/适配器模式解耦底层调用，实现外部 COM 接口与内部 UXP 插件双通道支持，对大模型层透明 | ✓ Good (v1.1) |
+| UXP 开发 4 大铁律 (沙盒隔离/事件防抖/executeAsModal/DOM优先) | 针对 UXP runtime 核心限制的规范定义，集成于 .planning/GEMINI.md 中 | ✓ Good (v1.1) |
+| 11 个核心 DOM 对应工具 Schema | 形成初始 MVP API 并以标准 JSON Schema 导出，供大模型 function calling 使用 | ✓ Good (v1.1) |
 
 ## Evolution
 
@@ -94,4 +91,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-12 after milestone v1.0 initialization*
+*Last updated: 2026-06-13 after milestone v1.2 initialization*

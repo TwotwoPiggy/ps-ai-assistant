@@ -6,9 +6,10 @@ import json
 import asyncio
 from typing import List, Dict, Any, Tuple
 
-from backend.tools import PhotoshopContext, registry
+from backend.tools import registry
 from backend.providers import get_provider
 from backend.config import get_ai_config
+from backend.engines import PSEngineBase
 
 class PhotoshopAgent:
     def __init__(self, api_key: str = None, model: str = None):
@@ -22,23 +23,38 @@ class PhotoshopAgent:
         self.model = model
         # 统一存储 OpenAI 格式的历史会话: sid -> list[dict]
         self.conversations: dict[str, list[dict]] = {}
-        # 为每个会话维护独立的 Photoshop 运行上下文
-        self.contexts: dict[str, PhotoshopContext] = {}
+        # 为每个会话维护独立的 Photoshop 运行引擎
+        self.engines: dict[str, PSEngineBase] = {}
 
     def clear_conversations(self, sid: str):
         """清空当前会话的历史聊天记录"""
         if sid in self.conversations:
             self.conversations[sid] = []
-        if sid in self.contexts:
-            # 清空图层映射关系，确保图层树是全新的
-            self.contexts[sid] = PhotoshopContext()
+        if sid in self.engines:
+            self.engines.pop(sid, None)
 
-    def _get_context(self, sid: str) -> PhotoshopContext:
-        if sid not in self.contexts:
-            self.contexts[sid] = PhotoshopContext()
-        return self.contexts[sid]
+    def _get_engine(self, sid: str, client_type: str = "web", sio=None, uxp_sid: str = None) -> PSEngineBase:
+        target_type = "com"
+        active_sid = sid
+        
+        if client_type == "uxp":
+            target_type = "uxp"
+            active_sid = sid
+        elif uxp_sid:
+            target_type = "uxp"
+            active_sid = uxp_sid
+            
+        if active_sid not in self.engines:
+            if target_type == "uxp":
+                from backend.engines import UXPEngine
+                self.engines[active_sid] = UXPEngine(sio, active_sid)
+            else:
+                from backend.engines import COMEngine
+                self.engines[active_sid] = COMEngine()
+                
+        return self.engines[active_sid]
 
-    async def handle_message(self, sid: str, message: str, status_callback=None) -> str:
+    async def handle_message(self, sid: str, message: str, status_callback=None, client_type: str = "web", sio=None, uxp_sid: str = None) -> str:
         """处理来自前端 Chat UI 的用户自然语言消息，返回 AI 回复"""
         
         # 1. 确保会话存在并清理历史超大 base64 图像
@@ -56,10 +72,10 @@ class PhotoshopAgent:
                         img_url_data = part.get("image_url", {})
                         url = img_url_data.get("url", "") if isinstance(img_url_data, dict) else part.get("url", "")
                         if len(url) > 1000:
-                            # 替换为占位符
+                            # 替换为纯文本占位符，防止触发 API base64 格式校验错误
                             cleaned_part = {
-                                "type": "image_url",
-                                "image_url": {"url": "data:image/jpeg;base64,...(已过期快照数据已清理)..."}
+                                "type": "text",
+                                "text": "[系统提示：之前的画布快照截图已被清除以释放上下文 Token]"
                             }
                             new_content.append(cleaned_part)
                         else:
@@ -84,7 +100,6 @@ class PhotoshopAgent:
                 prov_conf["model"] = self.model
                 
         provider = get_provider(current_provider_name, config)
-        ctx = self._get_context(sid)
 
         # 3. 追加当前用户的新消息
         self.conversations[sid].append({
@@ -95,17 +110,28 @@ class PhotoshopAgent:
         # 4. 获取统一的 OpenAI tools 描述
         tools_schema = registry.get_openai_schemas()
 
-        system_instruction = (
-            "你是一个功能强大的 Photoshop AI 助手，能够直接通过执行 Python COM 操作来修改当前的 Photoshop 文档。\n"
-            "你可以使用一系列定义好的工具（Tools）来完成用户的指令，包含图层基础操作和画布基本编辑。\n"
-            "【操作准则】:\n"
-            "1. 务必始终使用【简体中文】与用户进行回复和交流。\n"
-            "2. 当用户请求任何与图层相关的操作时，你没有默认图层的标识符。你【必须】首先调用 `get_layer_tree` 获取当前图层树以取得目标的 `layer_identify` (如 layer_1)，之后再利用它进行具体操作。不要猜测或使用用户提到的名字作为 ID 传入其他操作参数中。\n"
-            "3. 如果用户发出的指令非常依赖视觉理解（如'把画面变亮点'、'裁剪掉左上角'等），你应该优先调用 `get_canvas_snapshot` 获取当前画面，结合视觉特征后再做出调用工具或回复的判断。\n"
-            "4. 一次回复里，你可以决定调用一个或多个工具。多步操作应当按照合理顺序连贯调用，直到完成指令。\n"
-            "5. 当所有的工具调用执行完毕并得到结果后，你应该将执行情况及最终画布状态汇总成简明且易读的简体中文回复告诉用户。\n"
-            "6. 如果某个操作返回了错误（例如无法调整空白图层的亮度），请在最终回复中诚实告知用户，并提供指导或建议。"
-        )
+        # 动态加载外置系统提示词文件，支持热重载且具备鲁棒的 Fallback 机制
+        prompt_path = os.path.join(os.path.dirname(__file__), "prompts", "system_prompt.md")
+        system_instruction = ""
+        if os.path.exists(prompt_path):
+            try:
+                with open(prompt_path, "r", encoding="utf-8") as f:
+                    system_instruction = f.read()
+            except Exception as e:
+                print(f"[PS-AI] 读取外置提示词文件失败: {e}")
+        
+        if not system_instruction:
+            system_instruction = (
+                "你是一个功能强大的 Photoshop AI 助手，能够直接通过执行 Python COM 操作来修改当前的 Photoshop 文档。\n"
+                "你可以使用一系列定义好的工具（Tools）来完成用户的指令，包含图层基础操作和画布基本编辑。\n"
+                "【操作准则】:\n"
+                "1. 务必始终使用【简体中文】与用户进行回复和交流。\n"
+                "2. 当用户请求任何与图层相关的操作时，你没有默认图层的标识符。你【必须】首先调用 `get_layer_tree` 获取当前图层树以取得目标的 `layer_identify` (如 layer_1)，之后再利用它进行具体操作。不要猜测或使用用户提到的名字作为 ID 传入其他操作参数中。\n"
+                "3. 如果用户发出的指令非常依赖视觉理解（如'把画面变亮点'、'裁剪掉左上角'等），你应该优先调用 `get_canvas_snapshot` 获取当前画面，结合视觉特征后再做出调用工具或回复的判断。\n"
+                "4. 一次回复里，你可以决定调用一个或多个工具。多步操作应当按照合理顺序连贯调用，直到完成指令。\n"
+                "5. 当所有的工具调用执行完毕并得到结果后，你应该将执行情况及最终画布状态汇总成简明且易读的简体中文回复告诉用户。\n"
+                "6. 如果某个操作返回了错误（例如无法调整空白图层的亮度），请在最终回复中诚实告知用户，并提供指导或建议。"
+            )
 
         max_turns = 10
         turn = 0
@@ -213,8 +239,9 @@ class PhotoshopAgent:
                 if status_callback:
                     await status_callback("executing", f"正在执行 PS 操作: {name}...")
 
-                # 执行工具 (通过注册中心，并传入当前会话的 ctx)
-                result = registry.execute_tool(name, args, ctx)
+                # 获取执行引擎并执行工具
+                engine = self._get_engine(sid, client_type, sio, uxp_sid)
+                result = await engine.execute_tool(name, args)
 
                 # 处理图片数据，剥离超大 base64 字符串以防止污染 tool content
                 tool_content = result.copy() if isinstance(result, dict) else result

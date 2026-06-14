@@ -2,7 +2,10 @@ import os
 import time
 import base64
 import tempfile
+import logging
 import win32com.client
+
+logger = logging.getLogger(__name__)
 
 class PhotoshopContext:
     """Photoshop 运行上下文，用于纯函数工具与 Photoshop Agent 共享状态"""
@@ -10,13 +13,16 @@ class PhotoshopContext:
         self.layer_id_map = layer_id_map if layer_id_map is not None else {}
         self.next_id_val = next_id_val
 
-    def get_doc(self):
+    def get_app(self):
         try:
             import pythoncom
             pythoncom.CoInitialize()
         except Exception:
             pass
-        ps_app = win32com.client.Dispatch("Photoshop.Application")
+        return win32com.client.Dispatch("Photoshop.Application")
+
+    def get_doc(self):
+        ps_app = self.get_app()
         if ps_app.Documents.Count == 0:
             raise Exception("当前 Photoshop 中没有打开的文档，请先在 Photoshop 中打开或创建一个文档。")
         return ps_app.ActiveDocument
@@ -35,6 +41,29 @@ class PhotoshopContext:
 # ==========================================
 # Photoshop 纯函数工具集
 # ==========================================
+
+def _activate_layer(doc, layer_name: str = None):
+    """根据图层名称递归查找并激活图层。如果未提供名称，则返回当前活动图层。"""
+    if not layer_name:
+        return doc.ActiveLayer
+
+    def find_layer(container, name):
+        for i in range(1, container.Count + 1):
+            layer = container.Item(i)
+            if layer.Name == name:
+                return layer
+            if layer.typename == "LayerSet":
+                found = find_layer(layer.Layers, name)
+                if found:
+                    return found
+        return None
+
+    target = find_layer(doc.Layers, layer_name)
+    if not target:
+        raise Exception(f"未找到名称为 '{layer_name}' 的图层")
+    
+    doc.ActiveLayer = target
+    return target
 
 def get_layer_tree(ctx: PhotoshopContext) -> dict:
     """获取当前 Photoshop 文档的完整图层树结构，包括图层名称、ID、类型、可见性等。
@@ -300,5 +329,427 @@ def flip_image(ctx: PhotoshopContext, direction: str) -> dict:
         doc = ctx.get_doc()
         doc.FlipCanvas(direction_map[direction])
         return {"success": True, "message": f"画布已成功进行了 {direction} 翻转"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def execute_jsx(ctx: PhotoshopContext, jsx_code: str) -> dict:
+    """向 Photoshop 注入并执行一段 JavaScript (JSX) 脚本。
+    
+    Args:
+        jsx_code: 要注入执行的 ExtendScript 脚本代码
+    """
+    try:
+        logger.debug(f"Executing JSX code:\n{jsx_code}")
+        result = ctx.get_app().DoJavaScript(jsx_code)
+        return {"success": True, "result": result}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def create_document(ctx: PhotoshopContext, width: int, height: int, resolution: float = 72.0, name: str = "New Document") -> dict:
+    """在 Photoshop 中新建一个指定宽高、分辨率和名称的空白文档（画布）。
+    支持在无打开文档的状态下运行。
+    
+    Args:
+        width: 新建文档的宽度 (像素)
+        height: 新建文档的高度 (像素)
+        resolution: 分辨率 (像素/英寸)，默认 72.0
+        name: 文档标题名称，默认 "New Document"
+    """
+    try:
+        app = ctx.get_app()
+        new_doc = app.Documents.Add(width, height, resolution, name)
+        return {"success": True, "message": f"成功创建新文档 '{new_doc.Name}' ({width}x{height} px, {resolution} ppi)"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def open_and_place(ctx: PhotoshopContext, file_path: str) -> dict:
+    """在 Photoshop 中打开指定路径的文件并置入画布中。
+    支持在无打开文档的状态下运行。
+    
+    Args:
+        file_path: 待打开或置入的本地图像文件绝对路径
+    """
+    try:
+        app = ctx.get_app()
+        opened_doc = app.Open(file_path)
+        return {"success": True, "message": f"成功打开并置入文件: '{opened_doc.Name}'"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def save_document(ctx: PhotoshopContext, file_path: str = None) -> dict:
+    """保存当前活动的 Photoshop 文档。
+    
+    Args:
+        file_path: 可选。保存的目标绝对文件路径。
+                   如果未提供，且文档是新建未曾存盘的，则会自动以 ps_ai_export_{时间戳}.psd 命名保存至用户的系统桌面。
+    """
+    try:
+        doc = ctx.get_doc()
+        if not file_path:
+            try:
+                # 获取当前文档已有关联 the 物理文件路径
+                file_path = str(doc.FullName)
+            except Exception:
+                file_path = ""
+            
+            # 如果没有关联路径（新建文档，FullName 不可达或不是绝对路径）
+            if not file_path or not os.path.isabs(file_path):
+                desktop = os.path.expanduser("~/Desktop")
+                timestamp = int(time.time())
+                file_path = os.path.join(desktop, f"ps_ai_export_{timestamp}.psd")
+        
+        # 统一规范化路径格式
+        file_path = os.path.abspath(file_path)
+        doc.SaveAs(file_path)
+        return {"success": True, "message": f"文档已成功保存至: '{file_path}'"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def resize_image(ctx: PhotoshopContext, width: int, height: int) -> dict:
+    """调整当前 Photoshop 图像的物理尺寸大小。
+    
+    Args:
+        width: 目标图像的宽度 (像素)
+        height: 目标图像的高度 (像素)
+    """
+    try:
+        doc = ctx.get_doc()
+        doc.ResizeImage(width, height)
+        return {"success": True, "message": f"图像物理尺寸已成功调整为 {width}x{height}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def change_color_mode(ctx: PhotoshopContext, mode: str) -> dict:
+    """更改当前活动的 Photoshop 文档的色彩模式。
+    
+    执行此工具前，必须先在聊天界面提示用户即将进行色彩转换，等待用户明确回复『允许 (allow)』后才可调用。
+    
+    Args:
+        mode: 目标色彩模式。可选值包括: 'RGB', 'CMYK', 'Grayscale', 'Lab'。
+    """
+    mode_map = {
+        "grayscale": 1,
+        "gray": 1,
+        "rgb": 2,
+        "cmyk": 3,
+        "lab": 4
+    }
+    target_mode = mode.lower().strip()
+    if target_mode not in mode_map:
+        return {"success": False, "error": f"不支持的色彩模式 '{mode}'。可选模式有: 'RGB', 'CMYK', 'Grayscale', 'Lab'。"}
+        
+    try:
+        app = ctx.get_app()
+        # 备份原先的弹窗设置
+        orig_dialogs = app.DisplayDialogs
+        # 设置为 psDisplayNoDialogs = 3 以拦截所有警告弹窗
+        app.DisplayDialogs = 3
+        
+        doc = ctx.get_doc()
+        doc.ChangeMode(mode_map[target_mode])
+        
+        # 还原弹窗设置
+        app.DisplayDialogs = orig_dialogs
+        return {"success": True, "message": f"成功将色彩模式转换为 {mode.upper()}"}
+    except Exception as e:
+        try:
+            app.DisplayDialogs = orig_dialogs
+        except Exception:
+            pass
+        return {"success": False, "error": str(e)}
+
+def history_control(ctx: PhotoshopContext) -> dict:
+    """撤销上一步在 Photoshop 中执行的操作。
+    """
+    try:
+        app = ctx.get_app()
+        app.DoJavaScript("app.runMenuItem(charIDToTypeID('undo'));")
+        return {"success": True, "message": "成功执行撤销 (Undo) 操作"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def zoom_view(ctx: PhotoshopContext, action: str) -> dict:
+    """调整当前 Photoshop 文档的画布视图缩放比例。
+    
+    Args:
+        action: 缩放行为。支持的值有：
+                - '100%': 缩放到实际像素大小
+                - 'fit': 适合屏幕大小
+    """
+    try:
+        app = ctx.get_app()
+        if action == '100%':
+            app.DoJavaScript("app.runMenuItem(stringIDToTypeID('actualPixels'));")
+            msg = "实际像素 (100%)"
+        elif action == 'fit':
+            app.DoJavaScript("app.runMenuItem(stringIDToTypeID('fitOnScreen'));")
+            msg = "适合屏幕"
+        else:
+            return {"success": False, "error": f"不支持的缩放指令 '{action}'。只支持 '100%' 和 'fit'。"}
+        return {"success": True, "message": f"视图已成功调整为 {msg}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def group_layers(ctx: PhotoshopContext, layer_names: list, group_name: str) -> dict:
+    """将指定名称的多个图层进行编组（创建一个新的图层组并将它们移入）。
+    
+    Args:
+        layer_names: 待编组的图层名称列表
+        group_name: 新创建的图层组的名称
+    """
+    try:
+        doc = ctx.get_doc()
+        new_group = doc.LayerSets.Add()
+        new_group.Name = group_name
+        
+        for name in layer_names:
+            layer = _activate_layer(doc, name)
+            layer.Move(new_group, 2)  # psPlaceInside = 2
+            
+        return {"success": True, "message": f"成功将 {len(layer_names)} 个图层编入组 '{group_name}'"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def set_layer_opacity_and_fill(ctx: PhotoshopContext, opacity: float = None, fill: float = None, layer_name: str = None) -> dict:
+    """设置图层的不透明度与填充。如果不指定层名，则对当前活动层生效。
+    
+    Args:
+        opacity: 图层的不透明度百分比 (0 到 100)
+        fill: 图层的填充不透明度百分比 (0 到 100)
+        layer_name: 可选。目标图层名称
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = _activate_layer(doc, layer_name)
+        
+        if opacity is not None:
+            layer.Opacity = opacity
+            
+        if fill is not None:
+            try:
+                layer.FillOpacity = fill
+            except Exception:
+                # 图层组(LayerSet)的 DOM 不支持直接设置 FillOpacity，需要使用 ActionManager 回退处理
+                jsx_code = f"""
+                try {{
+                    var idsetd = charIDToTypeID( "setd" );
+                    var desc1 = new ActionDescriptor();
+                    var idnull = charIDToTypeID( "null" );
+                    var ref1 = new ActionReference();
+                    var idLyr = charIDToTypeID( "Lyr " );
+                    var idOrdn = charIDToTypeID( "Ordn" );
+                    var idTrgt = charIDToTypeID( "Trgt" );
+                    ref1.putEnumerated( idLyr, idOrdn, idTrgt );
+                    desc1.putReference( idnull, ref1 );
+                    var idT = charIDToTypeID( "T   " );
+                    var desc2 = new ActionDescriptor();
+                    var idfillOpacity = stringIDToTypeID( "fillOpacity" );
+                    var idPrc = charIDToTypeID( "#Prc" );
+                    desc2.putUnitDouble( idfillOpacity, idPrc, {fill} );
+                    var idLyr = charIDToTypeID( "Lyr " );
+                    desc1.putObject( idT, idLyr, desc2 );
+                    executeAction( idsetd, desc1, DialogModes.NO );
+                }} catch(e) {{
+                    // 如果依然失败则静默
+                }}
+                """
+                execute_jsx(ctx, jsx_code)
+                
+        return {"success": True, "message": f"成功更新图层 '{layer.Name}' 的透明度参数"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def set_layer_blend_mode(ctx: PhotoshopContext, blend_mode: str, layer_name: str = None) -> dict:
+    """设置图层的混合模式。如果不指定层名，则对当前活动层生效。
+    
+    Args:
+        blend_mode: 混合模式，例如 'normal', 'multiply', 'screen', 'overlay', 'softLight', 'hardLight', 'colorDodge', 'colorBurn', 'linearBurn', 'linearDodge' 等
+        layer_name: 可选。目标图层名称
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = _activate_layer(doc, layer_name)
+        
+        mode_map = {
+            "normal": "BlendMode.NORMAL",
+            "multiply": "BlendMode.MULTIPLY",
+            "screen": "BlendMode.SCREEN",
+            "overlay": "BlendMode.OVERLAY",
+            "softlight": "BlendMode.SOFTLIGHT",
+            "hardlight": "BlendMode.HARDLIGHT",
+            "colordodge": "BlendMode.COLORDODGE",
+            "colorburn": "BlendMode.COLORBURN",
+            "linearburn": "BlendMode.LINEARBURN",
+            "lineardodge": "BlendMode.LINEARDODGE",
+            "darken": "BlendMode.DARKEN",
+            "lighten": "BlendMode.LIGHTEN",
+            "difference": "BlendMode.DIFFERENCE",
+            "exclusion": "BlendMode.EXCLUSION",
+            "hue": "BlendMode.HUE",
+            "saturation": "BlendMode.SATURATION",
+            "color": "BlendMode.COLOR",
+            "luminosity": "BlendMode.LUMINOSITY"
+        }
+        
+        jsx_mode = mode_map.get(blend_mode.lower(), "BlendMode.NORMAL")
+        
+        jsx_code = f"""
+        var layer = app.activeDocument.activeLayer;
+        layer.blendMode = {jsx_mode};
+        """
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            raise Exception(res.get("error", "JSX 执行失败"))
+            
+        return {"success": True, "message": f"成功将图层 '{layer.Name}' 的混合模式设置为 '{blend_mode}'"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def move_layer(ctx: PhotoshopContext, x: float = None, y: float = None, dx: float = None, dy: float = None, layer_name: str = None) -> dict:
+    """移动图层的坐标位置（支持绝对坐标 x/y 或相对偏移 dx/dy）。如果不指定层名，则对当前活动层生效。
+    
+    Args:
+        x: 目标绝对 X 坐标
+        y: 目标绝对 Y 坐标
+        dx: 相对水平偏移量
+        dy: 相对垂直偏移量
+        layer_name: 可选。目标图层名称
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = _activate_layer(doc, layer_name)
+        
+        delta_x, delta_y = 0.0, 0.0
+        
+        try:
+            if x is not None and y is not None:
+                bounds = layer.Bounds
+                current_x = bounds[0]
+                current_y = bounds[1]
+                delta_x = x - current_x
+                delta_y = y - current_y
+            else:
+                if dx is not None:
+                    delta_x = dx
+                if dy is not None:
+                    delta_y = dy
+                    
+            layer.Translate(delta_x, delta_y)
+        except Exception as e:
+            err_msg = str(e).lower()
+            if "空" in err_msg or "empty" in err_msg or "bounds" in err_msg or "矩形" in err_msg:
+                return {"success": True, "message": f"图层 '{layer.Name}' 是空图层，无需也无法移动，已自动静默处理。"}
+            raise e
+        return {"success": True, "message": f"成功移动图层 '{layer.Name}'"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def merge_layers(ctx: PhotoshopContext, merge_type: str = "mergeDown", layer_name: str = None) -> dict:
+    """合并图层。支持向下合并、合并可见图层、拼合图像。如果不指定层名，则对当前活动层生效。
+    
+    Args:
+        merge_type: 合并类型。'mergeDown' (向下合并), 'mergeVisible' (合并可见), 'flattenImage' (拼合图像)
+        layer_name: 可选。目标图层名称
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = _activate_layer(doc, layer_name)
+        
+        if merge_type == "mergeDown":
+            layer.Merge()
+        elif merge_type == "mergeVisible":
+            doc.MergeVisibleLayers()
+        elif merge_type == "flattenImage":
+            doc.Flatten()
+        else:
+            return {"success": False, "error": f"无效的合并类型: {merge_type}"}
+            
+        return {"success": True, "message": f"成功执行图层合并 ({merge_type})"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def duplicate_layer(ctx: PhotoshopContext, layer_name: str = None, new_name: str = None) -> dict:
+    """复制图层。如果不指定层名，则对当前活动层生效。
+    
+    Args:
+        layer_name: 可选。目标图层名称
+        new_name: 可选。复制后的新图层名称
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = _activate_layer(doc, layer_name)
+        
+        dup = layer.Duplicate()
+        if new_name:
+            dup.Name = new_name
+            
+        return {"success": True, "message": f"成功复制图层 '{layer.Name}'，新图层名: '{dup.Name}'"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def rasterize_layer(ctx: PhotoshopContext, layer_name: str = None) -> dict:
+    """栅格化图层（支持幂等，已是普通图层则直接静默成功）。如果不指定层名，则对当前活动层生效。
+    
+    Args:
+        layer_name: 可选。目标图层名称
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = _activate_layer(doc, layer_name)
+        
+        jsx_code = """
+        var layer = app.activeDocument.activeLayer;
+        if (layer.kind != LayerKind.NORMAL) {
+            layer.rasterize(RasterizeType.ENTIRELAYER);
+        }
+        """
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            err_msg = res.get("error", "").lower()
+            if "空" in err_msg or "empty" in err_msg or "bounds" in err_msg or "矩形" in err_msg or "not currently available" in err_msg or "不可用" in err_msg:
+                return {"success": True, "message": f"图层 '{layer.Name}' 为空图层或已经是普通图层，无需栅格化，已自动忽略。"}
+            raise Exception(res.get("error", "JSX 执行失败"))
+            
+        return {"success": True, "message": f"成功栅格化图层 '{layer.Name}'"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def convert_to_smart_object(ctx: PhotoshopContext, layer_name: str = None) -> dict:
+    """将图层转换为智能对象（支持幂等，已是智能对象则直接静默成功）。如果不指定层名，则对当前活动层生效。
+    
+    Args:
+        layer_name: 可选。目标图层名称
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = _activate_layer(doc, layer_name)
+        
+        jsx_code = """
+        var layer = app.activeDocument.activeLayer;
+        if (layer.kind != LayerKind.SMARTOBJECT) {
+            var isEmpty = false;
+            try {
+                var b = layer.bounds;
+                if (b[0].value == 0 && b[1].value == 0 && b[2].value == 0 && b[3].value == 0) {
+                    isEmpty = true;
+                }
+            } catch(e) {
+                isEmpty = true;
+            }
+            if (isEmpty) {
+                throw new Error("EMPTY_LAYER_ERROR");
+            }
+            executeAction(stringIDToTypeID("newPlacedLayer"), undefined, DialogModes.NO);
+        }
+        """
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            err_msg = res.get("error", "").lower()
+            if "empty_layer_error" in err_msg or "空" in err_msg or "empty" in err_msg or "bounds" in err_msg:
+                # 明确向 AI 报告错误，引导 AI 提示用户，而不是静默成功，防止后续操作基于错误的智能对象假设
+                return {"success": False, "error": f"无法将空图层 '{layer.Name}' 转换为智能对象。请先在图层上添加可见的像素内容。"}
+            raise Exception(res.get("error", "JSX 执行失败"))
+            
+        return {"success": True, "message": f"成功将图层 '{layer.Name}' 转换为智能对象"}
     except Exception as e:
         return {"success": False, "error": str(e)}

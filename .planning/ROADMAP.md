@@ -1,43 +1,44 @@
-# Roadmap
+# Roadmap: v1.2 补全 COM 接口基础能力
 
-**Milestone:** v1.0
-**Goal:** 多 Provider 支持（Gemini、DeepSeek、Qwen、MiMo 及自定义 OpenAI 兼容）
+**3 phases** | **17 requirements mapped** | All covered ✓
 
-## Execution Phases
+| # | Phase | Goal | Requirements | Success Criteria |
+|---|-------|------|--------------|------------------|
+| 1 | 文档管理增强与架构扩充 | 在 `ps_tools` 中新增底层脚本执行支持，并实现所有文档级操作 | DOC-01, DOC-02, DOC-03, DOC-04, DOC-05, DOC-06, DOC-07, ARC-01 | 7 |
+| 2 | 图层进阶操作补全 | 全面实现所有针对图层和图层组的高级操控、编组、合并与转化接口 | LYR-01, LYR-02, LYR-03, LYR-04, LYR-05, LYR-06, LYR-07, LYR-08 | 8 |
+| 3 | AI 认知升级与集成测试 | 在大模型提示词中全面暴露这 15 个新接口并进行整体连贯性对话测试 | ARC-02 | 1 |
 
-| Phase | Name | Goal | Requirements | Success Criteria |
-|-------|------|------|--------------|------------------|
-| 1 | **架构与接口重构** | 1/1 | Complete   | 2026-06-12 |
-| 2 | **集成预置厂商** | 1/1 | Complete   | 2026-06-12 |
-| 3 | **前端配置面板改造** | 让用户能在 UI 上直观选择 Provider、填入 API Key 和配置 Base URL | CONF-03, CONF-04 | 3 |
+### Phase Details
 
----
+**Phase 1: 文档管理增强与架构扩充**
+Goal: 在 `ps_tools` 中新增底层脚本执行支持，并实现所有文档级操作
+Requirements: DOC-01, DOC-02, DOC-03, DOC-04, DOC-05, DOC-06, DOC-07, ARC-01
+Success criteria:
+1. `execute_jsx` 可以成功向 PS 注入 JS 脚本。
+2. 能够按需创建新空白画布。
+3. 能够正常打开本地图像并置入当前画布。
+4. 可以触发 PSD 或 JPG 保存/导出功能。
+5. 图像整体缩放和色彩模式切换正常运行。
+6. 历史记录撤销重做功能有效。
+7. 画布视图比例可正常调整。
 
-## Phase Details
+**Phase 2: 图层进阶操作补全**
+Goal: 全面实现所有针对图层和图层组的高级操控、编组、合并与转化接口
+Requirements: LYR-01, LYR-02, LYR-03, LYR-04, LYR-05, LYR-06, LYR-07, LYR-08
+Success criteria:
+1. 可新建图层组并容纳指定图层。
+2. 能调节任意图层的透明度和填充值。
+3. 可正确修改图层混合模式。
+4. 可按绝对坐标或相对位移移动图层。
+5. 向下合并、合并可见和拼合图像这 3 个合并能力均正常。
+6. 图层复制操作有效。
+7. 栅格化文字/智能对象图层有效。
+8. 普通图层转化为智能对象操作成功（依赖 JSX）。
 
-### Phase 1: 架构与接口重构
-**Goal:** 建立 BaseProvider 抽象，适配 Gemini 与通用 OpenAI 接口
-**Requirements:** ARCH-01, ARCH-02, ARCH-03, ARCH-04, ARCH-05, CONF-01, CONF-02
-
-**Success Criteria:**
-1. 工具方法成功从 `agent.py` 抽离，原 Gemini 调用逻辑在新架构下保持正常工作。
-2. 成功实现 Python 方法到 OpenAI JSON Schema 的动态转换，并在日志中验证格式。
-3. 后端 `config.py` 支持新的嵌套结构，前端拉取时 API Key 显示为 `****1234` 格式。
-
-### Phase 2: 集成预置厂商
-**Goal:** 实现对 DeepSeek, Qwen, MiMo 和自定义厂商的差异化支持及容错
-**Requirements:** PROV-01, PROV-02, PROV-03, PROV-04, PROV-05
-
-**Success Criteria:**
-1. Qwen-VL 和 MiMo 能够正常接收画布截图并进行多轮函数调用。
-2. DeepSeek (文本模型) 接收请求时能够安全忽略视觉输入并正常进行工具调用。
-3. 任何自定义 Base URL (支持 OpenAI 规范) 都可直接进行工具对话。
-
-### Phase 3: 前端配置面板改造
-**Goal:** 让用户能在 UI 上直观选择 Provider、填入 API Key 和配置 Base URL
-**Requirements:** CONF-03, CONF-04
-
-**Success Criteria:**
-1. UI 上新增 Provider 下拉选框，且能正确显示当前生效的厂商。
-2. 选中预置厂商时，Base URL 字段自动填充或隐藏，选中 Custom 时允许手动输入。
-3. 配置能够成功持久化到后端的 `ai_config.json`，且能立即生效进行聊天。
+**Phase 3: AI 认知升级与集成测试**
+Goal: 在大模型提示词中全面暴露这 15 个新接口并进行整体连贯性对话测试
+Requirements: ARC-02
+Success criteria:
+1. `backend/agent.py` 中注册的 tools 结构完整包含 15 个新 API。
+2. 大模型能正确区分 `resize_canvas` 和 `resize_image` 的使用场景。
+3. 连贯自然语言指令可一次性成功触发多个新接口完成复合操作（如：置入图片并转智能对象）。

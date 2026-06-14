@@ -1,78 +1,54 @@
-# Requirements: PS AI Assistant
+# Requirements
 
-**Defined:** 2026-06-12
-**Core Value:** 用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作。
+## Active
 
-## v1 Requirements
+### 文档管理 (Document)
+- [x] **DOC-01**: 实现 `create_document` 工具，允许 AI 指定宽高和背景色新建白板。
+- [x] **DOC-02**: 实现 `open_and_place` 工具，允许 AI 打开指定本地路径的图像。
+- [x] **DOC-03**: 实现 `save_document` 工具，允许 AI 保存 PSD 或导出常用图片格式。
+- [x] **DOC-04**: 实现 `resize_image` 工具，允许 AI 有损/无损缩放图像本身（非画布尺寸）。
+- [x] **DOC-05**: 实现 `change_color_mode` 工具，允许 AI 在 RGB/CMYK/灰度间切换。
+- [x] **DOC-06**: 实现 `history_control` 工具，允许 AI 回退撤销操作。
+- [x] **DOC-07**: 实现 `zoom_view` 工具，允许 AI 改变画布缩放比例（100%、适应屏幕）。
 
-Requirements for initial release. Each maps to roadmap phases.
+### 图层进阶 (Layers)
+- [ ] **LYR-01**: 实现 `group_layers` 工具，允许 AI 将特定图层建立分组。
+- [ ] **LYR-02**: 实现 `set_layer_opacity_and_fill` 工具，允许 AI 单独修改不透明度或填充。
+- [ ] **LYR-03**: 实现 `set_layer_blend_mode` 工具，允许 AI 切换正片叠底、滤色等混合模式。
+- [ ] **LYR-04**: 实现 `translate_layer` 工具，允许 AI 将图层沿 X/Y 轴移动指定像素。
+- [ ] **LYR-05**: 实现 `merge_layers` 工具，提供向下合并、合并可见、拼合图像三种选项。
+- [ ] **LYR-06**: 实现 `duplicate_layer` 工具，允许 AI 直接复制指定图层。
+- [ ] **LYR-07**: 实现 `rasterize_layer` 工具，允许 AI 栅格化图层。
+- [ ] **LYR-08**: 实现 `convert_to_smart_object` 工具，允许 AI 将图层转为智能对象（使用 JSX 后门）。
 
-### Provider Abstraction (架构重构)
+### 架构适配 (Architecture)
+- [x] **ARC-01**: 在后端 `ps_tools` 中添加 `execute_jsx()` 包装层用于执行 ActionManager 级代码。
+- [ ] **ARC-02**: 在提示词和 Schema 中精准暴露所有这 15 个能力，消除语义重叠。
 
-- [ ] **ARCH-01**: 从 `agent.py` 抽离 PS 工具逻辑到独立的工具注册表 `tools/ps_tools.py` 中。
-- [ ] **ARCH-02**: 开发 `tools/schema.py` 动态将 Python 工具方法解析为 OpenAI JSON Schema。
-- [ ] **ARCH-03**: 设计并实现 `BaseProvider` 抽象接口，统一化 `chat`, `format_tool_results`, `inject_image`。
-- [ ] **ARCH-04**: 实现 `GeminiProvider` 适配器（保留 `google-genai` SDK 原生功能）。
-- [ ] **ARCH-05**: 实现 `OpenAICompatProvider` 适配器以支持统一的 OpenAI SDK 规范。
-
-### Provider Integration (预置与自定义厂商)
-
-- [ ] **PROV-01**: 支持预置厂商 DeepSeek（`api.deepseek.com`）并处理其 tool choice 怪癖。
-- [ ] **PROV-02**: 支持预置厂商 通义千问 Qwen（`dashscope.aliyuncs.com`）。
-- [ ] **PROV-03**: 支持预置厂商 MiMo（`api.xiaomimimo.com`）。
-- [ ] **PROV-04**: 支持用户配置自定义 OpenAI 兼容 Provider（手动输入 baseUrl + apiKey）。
-- [ ] **PROV-05**: 处理 Providers 的视觉能力差异（拦截不支持视觉的厂商避免崩溃）。
-
-### Configuration & UI (配置与界面)
-
-- [ ] **CONF-01**: 后端 `config.py` 数据结构支持多 Provider 保存（支持旧版配置自动迁移）。
-- [ ] **CONF-02**: 后端接口在返回配置到前端时对 API Key 进行脱敏（仅显示前四后四），修复现有明文传输漏洞。
-- [ ] **CONF-03**: 前端配置面板改造：增加 Provider 下拉菜单（Gemini/DeepSeek/Qwen/MiMo/Custom）。
-- [ ] **CONF-04**: 前端配置面板改造：为非自定义的提供商自动填充 Base URL（锁定/隐藏或作为 Placeholder），用户仅需填 API Key 和模型名。
-
-## v2 Requirements
-
-Deferred to future release. Tracked but not in current roadmap.
-
-### 高级集成
-- **ADV-01**: 针对 DeepSeek 的 Reasoning Tokens (`<think>`) 在聊天界面前端展示支持。
-- **ADV-02**: 自动化降级工作流：当不支持视觉的文本模型遇到图像需求时，自动调用预置的本地端/或低成本 Vision 模型生成图像描述文本。
+## Future Requirements
+(None)
 
 ## Out of Scope
-
-Explicitly excluded. Documented to prevent scope creep.
-
-| Feature | Reason |
-|---------|--------|
-| 多 Provider 同时在线热切换聊天 | 复杂度极高，v1.0 限定为单例全局激活（在配置面板切换） |
-| 非 Function Calling 模型的文本解析降级 | Photoshop 操作 100% 依赖精确参数，尝试用纯文本正则提取不可靠 |
+- UXP 架构迁移 (由于目标免安装环境兼容性极差，已全面废弃，坚守 Web+COM)。
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| ARCH-01 | Phase 1 | Pending |
-| ARCH-02 | Phase 1 | Pending |
-| ARCH-03 | Phase 1 | Pending |
-| ARCH-04 | Phase 1 | Pending |
-| ARCH-05 | Phase 1 | Pending |
-| PROV-01 | Phase 2 | Pending |
-| PROV-02 | Phase 2 | Pending |
-| PROV-03 | Phase 2 | Pending |
-| PROV-04 | Phase 2 | Pending |
-| PROV-05 | Phase 2 | Pending |
-| CONF-01 | Phase 1 | Pending |
-| CONF-02 | Phase 1 | Pending |
-| CONF-03 | Phase 3 | Pending |
-| CONF-04 | Phase 3 | Pending |
-
-**Coverage:**
-- v1 requirements: 14 total
-- Mapped to phases: 14
-- Unmapped: 0 ✓
-
----
-*Requirements defined: 2026-06-12*
-*Last updated: 2026-06-12 after roadmap creation*
+| Requirement | Phase |
+|---|---|
+| DOC-01 | Phase 1 |
+| DOC-02 | Phase 1 |
+| DOC-03 | Phase 1 |
+| DOC-04 | Phase 1 |
+| DOC-05 | Phase 1 |
+| DOC-06 | Phase 1 |
+| DOC-07 | Phase 1 |
+| LYR-01 | Phase 2 |
+| LYR-02 | Phase 2 |
+| LYR-03 | Phase 2 |
+| LYR-04 | Phase 2 |
+| LYR-05 | Phase 2 |
+| LYR-06 | Phase 2 |
+| LYR-07 | Phase 2 |
+| LYR-08 | Phase 2 |
+| ARC-01 | Phase 1 |
+| ARC-02 | Phase 3 |

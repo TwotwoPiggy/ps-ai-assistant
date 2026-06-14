@@ -1,0 +1,175 @@
+{
+  "name": "uxp_core_tools",
+  "description": "Photoshop UXP 核心高频操作工具集，专供大模型 Function Calling 使用。",
+  "tools": [
+    {
+      "name": "get_layer_tree",
+      "description": "获取当前 Photoshop 文档的所有图层结构及其详细信息，包括图层ID、名称、可见性和层级关系。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "get_canvas_snapshot",
+      "description": "获取当前画布的可视化快照（图像数据），通常用于传递给多模态大模型进行视觉分析。",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "create_layer",
+      "description": "在当前 Photoshop 文档中创建一个新的空白图层。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "新建图层的名称"
+          }
+        },
+        "required": ["name"]
+      }
+    },
+    {
+      "name": "delete_layer",
+      "description": "根据图层ID删除指定的图层。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "layerId": {
+            "type": "number",
+            "description": "需要删除的图层ID"
+          }
+        },
+        "required": ["layerId"]
+      }
+    },
+    {
+      "name": "rename_layer",
+      "description": "修改指定图层的名称。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "layerId": {
+            "type": "number",
+            "description": "目标图层ID"
+          },
+          "newName": {
+            "type": "string",
+            "description": "新的图层名称"
+          }
+        },
+        "required": ["layerId", "newName"]
+      }
+    },
+    {
+      "name": "set_layer_visibility",
+      "description": "设置指定图层是否可见。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "layerId": {
+            "type": "number",
+            "description": "目标图层ID"
+          },
+          "visible": {
+            "type": "boolean",
+            "description": "是否可见（true: 显示, false: 隐藏）"
+          }
+        },
+        "required": ["layerId", "visible"]
+      }
+    },
+    {
+      "name": "reorder_layer",
+      "description": "改变指定图层的排列顺序（将其移动到目标图层的前面或后面）。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "layerId": {
+            "type": "number",
+            "description": "需要移动的图层ID"
+          },
+          "targetLayerId": {
+            "type": "number",
+            "description": "参考的目标图层ID"
+          },
+          "position": {
+            "type": "string",
+            "enum": ["before", "after", "inside"],
+            "description": "相对于目标图层的位置"
+          }
+        },
+        "required": ["layerId", "targetLayerId", "position"]
+      }
+    },
+    {
+      "name": "adjust_brightness_contrast",
+      "description": "调整当前选中图层（或指定图层）的亮度和对比度。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "brightness": {
+            "type": "number",
+            "description": "亮度调整值 (-150 到 150)"
+          },
+          "contrast": {
+            "type": "number",
+            "description": "对比度调整值 (-50 到 100)"
+          }
+        },
+        "required": ["brightness", "contrast"]
+      }
+    },
+    {
+      "name": "crop_canvas",
+      "description": "按照指定的边界裁剪当前文档画布。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "top": { "type": "number", "description": "顶部裁剪坐标（像素）" },
+          "left": { "type": "number", "description": "左侧裁剪坐标（像素）" },
+          "bottom": { "type": "number", "description": "底部裁剪坐标（像素）" },
+          "right": { "type": "number", "description": "右侧裁剪坐标（像素）" }
+        },
+        "required": ["top", "left", "bottom", "right"]
+      }
+    },
+    {
+      "name": "resize_canvas",
+      "description": "修改画布的宽高尺寸。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "width": { "type": "number", "description": "目标宽度（像素）" },
+          "height": { "type": "number", "description": "目标高度（像素）" },
+          "anchor": {
+            "type": "string",
+            "enum": ["top-left", "top-center", "top-right", "middle-left", "center", "middle-right", "bottom-left", "bottom-center", "bottom-right"],
+            "description": "缩放时的锚点位置，默认为 center"
+          }
+        },
+        "required": ["width", "height"]
+      }
+    },
+    {
+      "name": "flip_image",
+      "description": "翻转整个文档图像或特定图层。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "axis": {
+            "type": "string",
+            "enum": ["horizontal", "vertical"],
+            "description": "翻转的轴向（水平或垂直）"
+          }
+        },
+        "required": ["axis"]
+      }
+    }
+  ]
+}

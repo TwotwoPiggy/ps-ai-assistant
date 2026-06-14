@@ -50,7 +50,19 @@ class OpenAICompatProvider(BaseProvider):
                 
             # 处理 tool_calls 字段的兼容 (assistant 发出的 tool_calls)
             if "tool_calls" in msg:
-                new_msg["tool_calls"] = msg["tool_calls"]
+                standard_tool_calls = []
+                for tc in msg["tool_calls"]:
+                    args_val = tc.get("args", {})
+                    args_str = json.dumps(args_val, ensure_ascii=False) if isinstance(args_val, dict) else str(args_val or "{}")
+                    standard_tool_calls.append({
+                        "id": tc.get("id"),
+                        "type": "function",
+                        "function": {
+                            "name": tc.get("name"),
+                            "arguments": args_str
+                        }
+                    })
+                new_msg["tool_calls"] = standard_tool_calls
 
             if isinstance(content, list):
                 if not self.supports_vision:

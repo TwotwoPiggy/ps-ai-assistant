@@ -1,31 +1,31 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: 多 Provider 支持
-status: verifying
-last_updated: "2026-06-12T22:39:00Z"
-last_activity: 2026-06-12 — Phase 3 completed and verified
+milestone: v1.2
+milestone_name: Photoshop 核心功能全面 UXP 迁移与重构
+status: executing
+last_updated: "2026-06-13T10:48:11.275Z"
+last_activity: 2026-06-13 -- Phase 02 execution started
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_phases: 2
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 1
+  percent: 50
 ---
 
 ## Current Position
 
-Phase: 3 (前端配置面板改造)
-Plan: .planning/phases/03-前端配置面板改造/03-03-SUMMARY.md
-Status: Execution and Verification Completed
-Last activity: 2026-06-12 — Phase 3 completed and verified
+Phase: 02 (图层进阶操作补全) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 02
+Last activity: 2026-06-13 -- Phase 02 execution started
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-12)
+See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** 用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作。
-**Current focus:** Phase 3 complete. Ready for milestone audit.
+**Current focus:** Phase 02 — 图层进阶操作补全
 
 ## Accumulated Context
 
@@ -40,6 +40,12 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 - 为支持 R1 思维链实时推送，对 OpenAI 兼容 Provider 启用 stream=True 异步提取并在历史记录中剥离
 - 当第三方请求超时/出错时自动降级切换至 Gemini 兜底以保证系统高可用（提供开关控制）
 - 串行执行各并行 tool 调用并依次收集，将所有 tool 回复消息一次性且连续地追加，截图移至最末尾以严格契合 OpenAI 消息序列协议
+- 采用双引擎共存架构 (COM & UXP)，根据客户端在线状态进行运行时透明路由与自动平滑回退，实现前后端解耦
+- 统一制定 UXP 开发 4 大铁律，并通过 .planning/GEMINI.md 将其作为全局 AI Guardrails 硬约束以规范后续开发
+- 引入 DoJavaScript 注入通道，允许 Python COM 后端直接调用 JSX 脚本以执行高级/底层 Photoshop 操作
+- 在 PhotoshopContext 中解耦 get_app() 接口以隔离文档和应用层操作，在没有打开文档的情况下支持新建画布和打开置入
+- 色彩模式转换工具 (change_color_mode) 前置屏蔽警告弹框 (DisplayDialogs = 3)，并依靠 docstring 强契约实现在调用前由大模型向用户做人机交互授权确认
+- 文档保存工具 (save_document) 在文档未曾存盘时自动以时间戳形式另存至用户的系统桌面
 
 ### Blockers
 
@@ -48,4 +54,3 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ### Todos
 
 (none)
-
