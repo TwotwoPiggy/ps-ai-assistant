@@ -8,15 +8,14 @@
 
 用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作，且过程不依赖易中断的环境，具有生产级的高可用性。
 
-## Current Milestone: v1.3 COM 接口高级能力实现
+## Current Milestone: v1.4 实现安装、更新和卸载功能
 
-**Goal:** 基于 `COM-CAPABILITIES-REFERENCE.md`，全面实现 3、4、5、6 四大核心能力模块的接入，使 AI 助手掌握高级修图与工作流自动化能力。
+**Goal:** 为 PS AI Assistant 提供完善的生命周期管理能力，实现独立安装、平滑更新与干净卸载。
 
 **Target features:**
-- 3. 选区与蒙版 (Selection & Mask)
-- 4. 专业调色与光影 (Color Correction)
-- 5. 高级滤镜与人像美化 (Filters & Retouching)
-- 6. 自动化与动作集成 (Automation & Actions)
+- 安装流程 (自动配置环境、快捷方式)
+- 版本更新 (检查更新、自动下载替换)
+- 卸载流程 (清理残留、注销环境)
 
 ## Requirements
 
@@ -38,13 +37,16 @@
 - ✓ 实现图层进阶操作 8 项核心 API (group_layers, set_layer_opacity_and_fill, set_layer_blend_mode, translate_layer, merge_layers, duplicate_layer, rasterize_layer, convert_to_smart_object) — v1.2
 - ✓ 在 ps_tools 中引入 execute_jsx() 机制以便绕过部分 DOM 限制 — v1.2
 - ✓ 在 agent.py 中将这 15 个功能进行准确的 Schema 注册与系统提示词外置描述 — v1.2
+- ✓ 3. 选区与蒙版 (Selection & Mask) 功能接入 — v1.3
+- ✓ 4. 专业调色与光影 (Color Correction) 功能接入 — v1.3
+- ✓ 5. 高级滤镜与人像美化 (Filters & Retouching) 功能接入 — v1.3
+- ✓ 6. 自动化与动作集成 (Automation & Actions) 功能接入 — v1.3
 
 ### Active
 
-- 3. 选区与蒙版 (Selection & Mask) 功能接入
-- 4. 专业调色与光影 (Color Correction) 功能接入
-- 5. 高级滤镜与人像美化 (Filters & Retouching) 功能接入
-- 6. 自动化与动作集成 (Automation & Actions) 功能接入
+- 安装能力支持
+- 更新能力支持
+- 卸载能力支持
 
 ### Out of Scope
 
