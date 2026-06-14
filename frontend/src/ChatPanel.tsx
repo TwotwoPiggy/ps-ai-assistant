@@ -8,13 +8,55 @@ interface Message {
     text: string;
     status?: string;
     timestamp: number;
+    thinkingText?: string;
+}
+
+interface ProviderConfig {
+    api_key: string;
+    base_url: string;
+    model: string;
+}
+
+interface ThinkingBoxProps {
+    text: string;
+}
+
+function ThinkingBox({ text }: ThinkingBoxProps) {
+    const [isOpen, setIsOpen] = useState(true);
+    if (!text) return null;
+    return (
+        <div className="sdppp-ai-thinking-box">
+            <div className="sdppp-ai-thinking-header" onClick={() => setIsOpen(!isOpen)}>
+                <div className="sdppp-ai-thinking-title">
+                    <span className="thinking-icon">💭</span>
+                    <span>思考过程</span>
+                </div>
+                <div className={`sdppp-ai-thinking-arrow ${isOpen ? "open" : ""}`}>
+                    ▾
+                </div>
+            </div>
+            {isOpen && (
+                <div className="sdppp-ai-thinking-content">
+                    {text}
+                </div>
+            )}
+        </div>
+    );
 }
 
 export function ChatPanel() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState("");
-    const [apiKey, setApiKey] = useState("");
-    const [model, setModel] = useState("gemini-2.5-flash");
+    const [currentProvider, setCurrentProvider] = useState("gemini");
+    const [providers, setProviders] = useState<Record<string, ProviderConfig>>({
+        gemini: { api_key: "", base_url: "", model: "gemini-2.5-flash" },
+        deepseek: { api_key: "", base_url: "", model: "deepseek-chat" },
+        qwen: { api_key: "", base_url: "", model: "qwen-plus" },
+        mimo: { api_key: "", base_url: "", model: "mimo-v1" },
+        custom: { api_key: "", base_url: "", model: "" }
+    });
+    const thinkingRef = useRef("");
+    const [currentThinking, setCurrentThinking] = useState("");
     const [hasKey, setHasKey] = useState(false);
     const [isConfiguring, setIsConfiguring] = useState(false);
     const [statusText, setStatusText] = useState("");
@@ -25,13 +67,13 @@ export function ChatPanel() {
     useEffect(() => {
         // Fetch config
         socket.emit("ai_config", { action: "get" }, (res: any) => {
-            if (res) {
+            if (res && res.success) {
                 setHasKey(res.has_key);
-                if (res.gemini_api_key) {
-                    setApiKey(res.gemini_api_key);
+                if (res.current_provider) {
+                    setCurrentProvider(res.current_provider);
                 }
-                if (res.model) {
-                    setModel(res.model);
+                if (res.providers) {
+                    setProviders(res.providers);
                 }
             }
         });
@@ -44,11 +86,14 @@ export function ChatPanel() {
                     id: Math.random().toString(36).substring(7),
                     role: "assistant",
                     text: data.response,
+                    thinkingText: thinkingRef.current,
                     timestamp: Date.now()
                 }
             ]);
             setAiStatus("idle");
             setStatusText("");
+            thinkingRef.current = "";
+            setCurrentThinking("");
         };
 
         const handleStatus = (data: { status: "thinking" | "executing" | "done"; message: string }) => {
@@ -61,25 +106,36 @@ export function ChatPanel() {
             }
         };
 
+        const handleThinking = (data: { word: string }) => {
+            thinkingRef.current += data.word;
+            setCurrentThinking(thinkingRef.current);
+        };
+
         socket.on("ai_chat_response", handleResponse);
         socket.on("ai_chat_status", handleStatus);
+        socket.on("ai_chat_thinking", handleThinking);
 
         return () => {
             socket.off("ai_chat_response", handleResponse);
             socket.off("ai_chat_status", handleStatus);
+            socket.off("ai_chat_thinking", handleThinking);
         };
     }, []);
 
     // Scroll to bottom when messages update
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, aiStatus, statusText]);
+    }, [messages, aiStatus, statusText, currentThinking]);
 
     const handleSend = () => {
         if (!inputValue.trim()) return;
 
         const userMsg = inputValue;
         setInputValue("");
+        
+        // 重置思维链缓存
+        thinkingRef.current = "";
+        setCurrentThinking("");
 
         // Add user message to UI
         setMessages(prev => [
@@ -109,11 +165,30 @@ export function ChatPanel() {
         }
     };
 
+    const updateProviderField = (provider: string, field: keyof ProviderConfig, value: string) => {
+        setProviders(prev => ({
+            ...prev,
+            [provider]: {
+                ...prev[provider],
+                [field]: value
+            }
+        }));
+    };
+
+    const handleKeyFocus = (provider: string, currentVal: string) => {
+        if (currentVal && currentVal.includes("****")) {
+            updateProviderField(provider, "api_key", "");
+        }
+    };
+
     const handleSaveConfig = () => {
-        socket.emit("ai_config", { action: "save", gemini_api_key: apiKey, model }, (res: any) => {
+        socket.emit("ai_config", {
+            action: "save",
+            current_provider: currentProvider,
+            providers: providers
+        }, (res: any) => {
             if (res && res.success) {
                 setHasKey(res.has_key);
-                if (res.model) setModel(res.model);
                 setIsConfiguring(false);
                 // System notification message
                 setMessages(prev => [
@@ -121,12 +196,12 @@ export function ChatPanel() {
                     {
                         id: Math.random().toString(36).substring(7),
                         role: "system",
-                        text: "Gemini API Key 配置保存成功，AI 操作助手功能已启用。",
+                        text: `AI 配置保存成功，当前 Provider 已切换为 ${currentProvider}。`,
                         timestamp: Date.now()
                     }
                 ]);
             } else {
-                alert("API Key 保存失败，请重试。");
+                alert("配置保存失败，请检查参数后重试。");
             }
         });
     };
@@ -158,36 +233,100 @@ export function ChatPanel() {
 
             {isConfiguring && (
                 <div className="sdppp-ai-config-body">
-                    <label>请输入您的 Gemini API Key:</label>
+                    <label>选择 AI 提供商 (Provider):</label>
+                    <div className="sdppp-ai-config-input-row">
+                        <select 
+                            value={currentProvider} 
+                            onChange={(e) => setCurrentProvider(e.target.value)}
+                            className="sdppp-ai-provider-select"
+                        >
+                            <option value="gemini">Gemini (Google)</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="qwen">通义千问 (Qwen)</option>
+                            <option value="mimo">MiMo (小米)</option>
+                            <option value="custom">自定义 OpenAI 兼容</option>
+                        </select>
+                    </div>
+
+                    <label>API Key:</label>
                     <div className="sdppp-ai-config-input-row">
                         <input
                             type="password"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
+                            value={providers[currentProvider]?.api_key || ""}
+                            onChange={(e) => updateProviderField(currentProvider, "api_key", e.target.value)}
+                            onFocus={() => handleKeyFocus(currentProvider, providers[currentProvider]?.api_key || "")}
                             placeholder="保留为空以使用现有 Key"
                             className="sdppp-ai-key-input"
                         />
                     </div>
-                    <label>选择模型:</label>
+
+                    {(currentProvider === "custom" || currentProvider === "mimo") && (
+                        <>
+                            <label>接口地址 (Base URL):</label>
+                            <div className="sdppp-ai-config-input-row">
+                                <input
+                                    type="text"
+                                    value={providers[currentProvider]?.base_url || ""}
+                                    onChange={(e) => updateProviderField(currentProvider, "base_url", e.target.value)}
+                                    placeholder={currentProvider === "mimo" ? "http://10.0.0.x:8000/v1" : "https://api.yourprovider.com/v1"}
+                                    className="sdppp-ai-base-url-input"
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    <label>选择/输入模型 (Model):</label>
                     <div className="sdppp-ai-config-input-row">
-                        <select 
-                            value={model} 
-                            onChange={(e) => setModel(e.target.value)}
-                            className="sdppp-ai-model-select"
-                        >
-                            <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                            <option value="gemini-3-flash">Gemini 3 Flash</option>
-                            <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                            <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
-                            <option value="gemma-4-31b-it">Gemma-4-31b-it</option>
-                            <option value="gemma-4-26b-a4b-it">Gemma-4-26b-a4b-it</option>
-                        </select>
+                        {currentProvider === "custom" ? (
+                            <input
+                                type="text"
+                                value={providers[currentProvider]?.model || ""}
+                                onChange={(e) => updateProviderField(currentProvider, "model", e.target.value)}
+                                placeholder="例如: gpt-4o"
+                                className="sdppp-ai-model-input"
+                            />
+                        ) : (
+                            <select 
+                                value={providers[currentProvider]?.model || ""} 
+                                onChange={(e) => updateProviderField(currentProvider, "model", e.target.value)}
+                                className="sdppp-ai-model-select"
+                            >
+                                {currentProvider === "gemini" && (
+                                    <>
+                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                        <option value="gemini-3-flash">Gemini 3 Flash</option>
+                                        <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                                        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
+                                        <option value="gemma-4-31b-it">Gemma-4-31b-it</option>
+                                        <option value="gemma-4-26b-a4b-it">Gemma-4-26b-a4b-it</option>
+                                    </>
+                                )}
+                                {currentProvider === "deepseek" && (
+                                    <>
+                                        <option value="deepseek-chat">deepseek-chat (V3)</option>
+                                        <option value="deepseek-reasoner">deepseek-reasoner (R1)</option>
+                                    </>
+                                )}
+                                {currentProvider === "qwen" && (
+                                    <>
+                                        <option value="qwen-plus">qwen-plus</option>
+                                        <option value="qwen-max">qwen-max</option>
+                                        <option value="qwen-vl-plus">qwen-vl-plus</option>
+                                    </>
+                                )}
+                                {currentProvider === "mimo" && (
+                                    <>
+                                        <option value="mimo-v1">mimo-v1</option>
+                                    </>
+                                )}
+                            </select>
+                        )}
                         <button onClick={handleSaveConfig} className="sdppp-ai-save-btn">
-                            保存
+                            保存配置
                         </button>
                     </div>
                     <span className="sdppp-ai-config-tip">
-                        注意：您的 API Key 将被安全地保存在本地 Python 服务端配置文件中，不会上传到云端。
+                        注意：您的配置及 API Key 将安全地保存在本地服务端，不会上传到公共云端。
                     </span>
                 </div>
             )}
@@ -216,8 +355,13 @@ export function ChatPanel() {
                         <div className="sdppp-chat-avatar">
                             {msg.role === "user" ? "👤" : msg.role === "system" ? "⚙️" : "✦"}
                         </div>
-                        <div className="sdppp-chat-bubble">
-                            {msg.text}
+                        <div className="sdppp-chat-bubble-wrapper">
+                            {msg.role === "assistant" && msg.thinkingText && (
+                                <ThinkingBox text={msg.thinkingText} />
+                            )}
+                            <div className="sdppp-chat-bubble">
+                                {msg.text}
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -225,9 +369,14 @@ export function ChatPanel() {
                 {aiStatus !== "idle" && (
                     <div className={`sdppp-chat-msg-row assistant loading`}>
                         <div className="sdppp-chat-avatar pulsating">✦</div>
-                        <div className="sdppp-chat-bubble loading-bubble">
-                            <div className="pulsating-ring"></div>
-                            <span className="sdppp-status-msg">{statusText}</span>
+                        <div className="sdppp-chat-bubble-wrapper">
+                            {currentThinking && (
+                                <ThinkingBox text={currentThinking} />
+                            )}
+                            <div className="sdppp-chat-bubble loading-bubble">
+                                <div className="pulsating-ring"></div>
+                                <span className="sdppp-status-msg">{statusText}</span>
+                            </div>
                         </div>
                     </div>
                 )}

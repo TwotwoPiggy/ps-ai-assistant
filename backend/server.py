@@ -19,26 +19,36 @@ from .agent import PhotoshopAgent
 ai_agent: PhotoshopAgent | None = None
 api_key: str = ""
 
+def mask_api_key(key: str) -> str:
+    """对 API Key 进行脱敏，保留前4位和后4位"""
+    if not key:
+        return ""
+    if len(key) <= 8:
+        return "****"
+    return f"{key[:4]}****{key[-4:]}"
 
-def reload_ai_agent(new_key: str, new_model: str) -> bool:
-    """用新的 API Key 和模型初始化或重载 AI Agent"""
+def reload_ai_agent() -> bool:
+    """根据最新的系统配置初始化或重载 AI Agent"""
     global ai_agent, api_key
-    if not new_key:
-        ai_agent = None
-        api_key = ""
-        return False
     try:
-        model = new_model or "gemini-2.5-flash"
-        ai_agent = PhotoshopAgent(api_key=new_key, model=model)
-        api_key = new_key
-        save_ai_config(new_key, model)
+        config = get_ai_config()
+        curr_p = config.get("current_provider", "gemini")
+        curr_config = config.get("providers", {}).get(curr_p, {})
+        curr_key = curr_config.get("api_key", "").strip()
+        
+        if not curr_key:
+            ai_agent = None
+            api_key = ""
+            return False
+            
+        ai_agent = PhotoshopAgent()
+        api_key = curr_key
         return True
     except Exception as e:
         print(f"[PS-AI] Agent 初始化失败: {e}")
         ai_agent = None
         api_key = ""
         return False
-
 
 # ==========================================
 # Socket.IO 服务器
@@ -64,33 +74,30 @@ async def ai_chat(sid, payload={}):
     """处理前端发来的聊天消息"""
     global ai_agent
 
-    # 懒初始化: 第一次收到 ai_chat 时尝试加载 API Key 并创建 Agent
+    # 懒初始化: 第一次收到 ai_chat 时尝试加载配置并创建 Agent
     if not ai_agent:
-        config = get_ai_config()
-        key = config.get("gemini_api_key", "")
-        model = config.get("model", "gemini-2.5-flash")
-        if not key:
+        reload_ai_agent()
+        if not ai_agent:
             await sio.emit('ai_chat_response', {
-                "response": "请先在 AI 配置面板中设置您的 Gemini API Key 以启用 AI 聊天操作功能。"
+                "response": "请先在 AI 配置面板中设置您的 API Key 以启用智能助手服务。"
             }, to=sid)
             return
-        else:
-            reload_ai_agent(key, model)
-            if not ai_agent:
-                await sio.emit('ai_chat_response', {
-                    "response": "AI Agent 初始化失败，请检查您的 API Key 是否正确。"
-                }, to=sid)
-                return
 
     message = payload.get("message", "")
     if not message:
         return
 
     async def status_callback(status, msg):
-        await sio.emit('ai_chat_status', {
-            "status": status,
-            "message": msg
-        }, to=sid)
+        if status == "thinking_word":
+            await sio.emit('ai_chat_thinking', {
+                "word": msg
+            }, to=sid)
+        else:
+            await sio.emit('ai_chat_status', {
+                "status": status,
+                "message": msg
+            }, to=sid)
+
 
     try:
         response = await ai_agent.handle_message(sid, message, status_callback)
@@ -121,19 +128,79 @@ async def ai_config(sid, payload={}):
 
     action = payload.get("action", "get")
     if action == "save":
-        new_key = payload.get("gemini_api_key", "").strip()
-        new_model = payload.get("model", "gemini-2.5-flash").strip()
-        # If new_key is empty or dummy placeholder, try to keep the existing one if it's available
-        if not new_key and api_key:
-            new_key = api_key
-        success = reload_ai_agent(new_key, new_model)
-        return {"success": success, "has_key": bool(api_key), "model": new_model}
-    else:
-        # GET: 返回当前配置状态
+        # 获取现有的配置
         config = get_ai_config()
-        current_key = api_key or config.get("gemini_api_key", "")
-        current_model = config.get("model", "gemini-2.5-flash")
-        return {"has_key": bool(current_key), "gemini_api_key": current_key, "model": current_model}
+        
+        current_provider = payload.get("current_provider")
+        providers_payload = payload.get("providers")
+        
+        if current_provider is not None:
+            config["current_provider"] = current_provider
+            
+        if providers_payload and isinstance(providers_payload, dict):
+            # 新的多 Provider 格式保存
+            for p, fields in providers_payload.items():
+                if p not in config["providers"]:
+                    config["providers"][p] = {}
+                    
+                raw_key = fields.get("api_key", "").strip()
+                if raw_key:
+                    # 如果收到包含掩码的 key，忽略它，不覆写原已保存的 Key
+                    if "****" in raw_key:
+                        pass
+                    else:
+                        config["providers"][p]["api_key"] = raw_key
+                        
+                if "base_url" in fields:
+                    config["providers"][p]["base_url"] = fields["base_url"].strip()
+                if "model" in fields:
+                    config["providers"][p]["model"] = fields["model"].strip()
+        else:
+            # 兼容旧版本保存: payload.get("gemini_api_key"), payload.get("model")
+            new_gemini_key = payload.get("gemini_api_key", "").strip()
+            new_model = payload.get("model", "").strip()
+            
+            if new_gemini_key:
+                if "****" not in new_gemini_key:
+                    config["providers"]["gemini"]["api_key"] = new_gemini_key
+            if new_model:
+                config["providers"]["gemini"]["model"] = new_model
+                
+        # 写入物理配置文件
+        save_ai_config(
+            current_provider=config["current_provider"],
+            providers=config["providers"]
+        )
+        
+        # 重载 Agent
+        success = reload_ai_agent()
+        
+        # 返回新状态
+        curr_p = config["current_provider"]
+        curr_model = config["providers"][curr_p]["model"]
+        return {"success": success, "has_key": bool(api_key), "model": curr_model}
+    else:
+        # GET: 返回包含脱敏数据的新老配置信息
+        config = get_ai_config()
+        
+        masked_providers = {}
+        for p, fields in config.get("providers", {}).items():
+            masked_providers[p] = fields.copy()
+            masked_providers[p]["api_key"] = mask_api_key(fields.get("api_key", ""))
+            
+        curr_p = config.get("current_provider", "gemini")
+        curr_key = config["providers"][curr_p]["api_key"]
+        curr_model = config["providers"][curr_p]["model"]
+        
+        return {
+            "success": True,
+            "current_provider": curr_p,
+            "providers": masked_providers,
+            # 旧版兼容字段
+            "has_key": bool(curr_key),
+            "gemini_api_key": mask_api_key(config["providers"]["gemini"]["api_key"]),
+            "model": curr_model
+        }
 
 
 # ==========================================

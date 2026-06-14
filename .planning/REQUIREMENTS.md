@@ -63,16 +63,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROV-03 | Phase 2 | Pending |
 | PROV-04 | Phase 2 | Pending |
 | PROV-05 | Phase 2 | Pending |
-| CONF-01 | Phase 3 | Pending |
-| CONF-02 | Phase 3 | Pending |
+| CONF-01 | Phase 1 | Pending |
+| CONF-02 | Phase 1 | Pending |
 | CONF-03 | Phase 3 | Pending |
 | CONF-04 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14 ⚠️
+- Mapped to phases: 14
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-12*
-*Last updated: 2026-06-12 after initial definition*
+*Last updated: 2026-06-12 after roadmap creation*
