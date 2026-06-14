@@ -6,6 +6,7 @@ interface Message {
     id: string;
     role: "user" | "assistant" | "system";
     text: string;
+    imageUrl?: string;
     status?: string;
     timestamp: number;
     thinkingText?: string;
@@ -62,6 +63,8 @@ export function ChatPanel() {
     const [isConfiguring, setIsConfiguring] = useState(false);
     const [statusText, setStatusText] = useState("");
     const [aiStatus, setAiStatus] = useState<"idle" | "thinking" | "executing">("idle");
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     // Initial check for API key
@@ -128,11 +131,32 @@ export function ChatPanel() {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, aiStatus, statusText, currentThinking]);
 
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            if (event.target?.result) {
+                setSelectedImage(event.target.result as string);
+            }
+        };
+        reader.readAsDataURL(file);
+        
+        // Reset file input so the same file can be selected again if needed
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
     const handleSend = () => {
-        if (!inputValue.trim()) return;
+        if (!inputValue.trim() && !selectedImage) return;
 
         const userMsg = inputValue;
+        const currentImage = selectedImage;
+        
         setInputValue("");
+        setSelectedImage(null);
         
         // 重置思维链缓存
         thinkingRef.current = "";
@@ -145,6 +169,7 @@ export function ChatPanel() {
                 id: Math.random().toString(36).substring(7),
                 role: "user",
                 text: userMsg,
+                imageUrl: currentImage || undefined,
                 timestamp: Date.now()
             }
         ]);
@@ -152,8 +177,21 @@ export function ChatPanel() {
         setAiStatus("thinking");
         setStatusText("AI 正在思考中...");
 
+        // Format payload to support multimodal content if image is present
+        let payloadMessage: string | any[] = userMsg;
+        if (currentImage) {
+            payloadMessage = [];
+            if (userMsg.trim()) {
+                payloadMessage.push({ type: "text", text: userMsg });
+            }
+            payloadMessage.push({ 
+                type: "image_url", 
+                image_url: { url: currentImage } 
+            });
+        }
+
         // Send to backend
-        socket.emit("ai_chat", { message: userMsg });
+        socket.emit("ai_chat", { message: payloadMessage });
     };
 
     const handleClearHistory = () => {
@@ -361,7 +399,14 @@ export function ChatPanel() {
                                 <ThinkingBox text={msg.thinkingText} />
                             )}
                             <div className="sdppp-chat-bubble">
-                                {msg.text}
+                                {msg.imageUrl && (
+                                    <img 
+                                        src={msg.imageUrl} 
+                                        alt="Uploaded content" 
+                                        className="sdppp-chat-image-attachment" 
+                                    />
+                                )}
+                                {msg.text && <div>{msg.text}</div>}
                             </div>
                         </div>
                     </div>
@@ -385,36 +430,69 @@ export function ChatPanel() {
             </div>
 
             {/* Input Area */}
-            <div className="sdppp-ai-chat-input-bar">
-                <input
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === "Enter" && aiStatus === "idle") handleSend();
-                    }}
-                    placeholder={hasKey ? "请输入您对 Photoshop 的指令..." : "请先配置 API Key 以开始聊天"}
-                    disabled={!hasKey || aiStatus !== "idle"}
-                    className="sdppp-ai-main-input"
-                />
-                {aiStatus === "idle" ? (
-                    <button 
-                        onClick={handleSend}
-                        disabled={!hasKey || !inputValue.trim()}
-                        className="sdppp-ai-send-btn"
-                    >
-                        发送
-                    </button>
-                ) : (
-                    <button 
-                        onClick={handleInterrupt}
-                        className="sdppp-ai-interrupt-btn"
-                        style={{ backgroundColor: "#ef4444", color: "white", minWidth: "60px" }}
-                        title="中断当前对话"
-                    >
-                        中断
-                    </button>
+            <div className="sdppp-ai-chat-input-wrapper">
+                {selectedImage && (
+                    <div className="sdppp-ai-image-preview-container">
+                        <div className="sdppp-ai-image-preview">
+                            <img src={selectedImage} alt="Preview" />
+                            <button 
+                                className="sdppp-ai-image-preview-remove" 
+                                onClick={() => setSelectedImage(null)}
+                                title="移除图片"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    </div>
                 )}
+                
+                <div className="sdppp-ai-chat-input-bar">
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        ref={fileInputRef} 
+                        style={{ display: "none" }} 
+                        onChange={handleImageSelect}
+                    />
+                    <button 
+                        className="sdppp-ai-upload-btn"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={!hasKey || aiStatus !== "idle"}
+                        title="上传图片给 AI"
+                    >
+                        📎
+                    </button>
+                    
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && aiStatus === "idle") handleSend();
+                        }}
+                        placeholder={hasKey ? "请输入您对 Photoshop 的指令..." : "请先配置 API Key 以开始聊天"}
+                        disabled={!hasKey || aiStatus !== "idle"}
+                        className="sdppp-ai-main-input"
+                    />
+                    {aiStatus === "idle" ? (
+                        <button 
+                            onClick={handleSend}
+                            disabled={!hasKey || (!inputValue.trim() && !selectedImage)}
+                            className="sdppp-ai-send-btn"
+                        >
+                            发送
+                        </button>
+                    ) : (
+                        <button 
+                            onClick={handleInterrupt}
+                            className="sdppp-ai-interrupt-btn"
+                            style={{ backgroundColor: "#ef4444", color: "white", minWidth: "60px" }}
+                            title="中断当前对话"
+                        >
+                            中断
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
