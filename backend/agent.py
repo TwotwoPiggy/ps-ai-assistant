@@ -237,7 +237,11 @@ class PhotoshopAgent:
                 args = tool_call.get("args")
 
                 if status_callback:
-                    await status_callback("executing", f"正在执行 PS 操作: {name}...")
+                    interactive_tools = ["apply_liquify", "apply_neural_filter", "apply_camera_raw_preset"]
+                    if name in interactive_tools:
+                        await status_callback("executing", f"正在唤起面板: {name}... (请前往 Photoshop 原生界面完成操作并点击确定)")
+                    else:
+                        await status_callback("executing", f"正在执行 PS 操作: {name}...")
 
                 # 获取执行引擎并执行工具
                 engine = self._get_engine(sid, client_type, sio, uxp_sid)

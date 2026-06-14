@@ -1667,12 +1667,23 @@ def apply_commercial_retouch(ctx: PhotoshopContext, opacity: float = 100.0) -> d
             copyLyr.name = activeLyr.name + "_磨皮";
             doc.activeLayer = copyLyr;
             
+            // 确保图层是普通像素图层，以便应用破坏性滤镜和反相
+            try {{
+                if (copyLyr.kind !== LayerKind.NORMAL) {{
+                    copyLyr.rasterize(RasterizeType.ENTIRELAYER);
+                }}
+            }} catch(e) {{}}
+            
             // 2. 将图层混合模式设为线性光 (Linear Light)
             copyLyr.blendMode = BlendMode.LINEARLIGHT;
             copyLyr.opacity = {opacity};
             
-            // 3. 执行反相
-            executeAction(charIDToTypeID("Invt"), undefined, DialogModes.NO);
+            // 3. 执行反相 (优先使用 DOM 方法，失败则 fallback 到 ActionManager)
+            try {{
+                copyLyr.invert();
+            }} catch(e) {{
+                executeAction(charIDToTypeID("Invt"), undefined, DialogModes.NO);
+            }}
             
             // 4. 应用高反差保留 (High Pass)
             var hpDesc = new ActionDescriptor();

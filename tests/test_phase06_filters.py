@@ -17,7 +17,7 @@ def run_tests():
     if hasattr(ps_tools, "apply_blur_sharpen"):
         print("\n-- 步骤 1: 测试高斯模糊 --")
         ps_tools.create_document(ctx, width=400, height=400, name="Gaussian Blur Test")
-        ps_tools.create_layer(ctx, name="BlurLayer")
+        # 直接在自动生成的带有白色的背景层上测试，不要使用空透明图层
         res = ps_tools.apply_blur_sharpen(ctx, filter_type="gaussian", radius=3.5)
         print("Apply Gaussian Blur:", res)
         assert res["success"] is True
@@ -49,7 +49,7 @@ def run_tests():
     if hasattr(ps_tools, "apply_camera_raw_preset"):
         print("\n-- 步骤 5: 测试 Camera Raw 预设应用 --")
         ps_tools.create_document(ctx, width=400, height=400, name="Camera Raw Test")
-        ps_tools.create_layer(ctx, name="PhotoLayer")
+        # 同样，在带有白色的背景层上测试
         
         # 期待传入空时使用内置默认预设，并首先自动将普通图层转换为智能对象
         res = ps_tools.apply_camera_raw_preset(ctx, preset_path="")
