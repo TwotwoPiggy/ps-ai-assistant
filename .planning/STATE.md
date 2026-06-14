@@ -1,31 +1,32 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Photoshop 核心功能全面 UXP 迁移与重构
-status: executing
-last_updated: "2026-06-13T14:33:54.847Z"
-last_activity: 2026-06-13
+milestone: v1.3
+milestone_name: COM 接口高级能力实现
+status: testing
+last_updated: "2026-06-14T02:52:00.000Z"
+last_activity: 2026-06-14
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 2
-  total_plans: 3
+  total_plans: 2
   completed_plans: 2
-  percent: 67
+  percent: 50
 ---
 
 ## Current Position
 
-Phase: 02 (图层进阶操作补全) — EXECUTING
-Plan: 1 of 1
-Status: Executing Phase 02
-Last activity: 2026-06-13
+Phase: 06 (高级滤镜与人像美化) — PLANNING
+Plan: 0 of 1
+Status: Phase 05 UAT passed, ready to plan Phase 06
+Last activity: 2026-06-14 — Completed Phase 05 UAT verification
+
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-06-13)
 
 **Core value:** 用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作。
-**Current focus:** Phase 02 — 图层进阶操作补全
+**Current focus:** Defining requirements
 
 ## Accumulated Context
 
@@ -46,6 +47,10 @@ See: .planning/PROJECT.md (updated 2026-06-13)
 - 在 PhotoshopContext 中解耦 get_app() 接口以隔离文档和应用层操作，在没有打开文档的情况下支持新建画布和打开置入
 - 色彩模式转换工具 (change_color_mode) 前置屏蔽警告弹框 (DisplayDialogs = 3)，并依靠 docstring 强契约实现在调用前由大模型向用户做人机交互授权确认
 - 文档保存工具 (save_document) 在文档未曾存盘时自动以时间戳形式另存至用户的系统桌面
+- Phase 05: 模糊调色指令必须向用户前置询问“是否使用无损调整图层”以及“是否将选区转为蒙版”。
+- Phase 05: 后端颜色 API 仅接收严谨数值（RGB/Hex/HSB等），由大模型使用多模态视觉或语义能力自行换算中文色彩词。
+- Phase 05: 高级调色提供子通道级参数支持，但大模型应默认优先调节主通道。
+- Phase 05: CAF 严禁无选区运行，必须被拦截并引导用户绘制或智能创建选区。
 
 ### Blockers
 

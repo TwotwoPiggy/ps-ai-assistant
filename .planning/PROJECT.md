@@ -8,9 +8,15 @@
 
 用户可以用自然语言直接控制 Photoshop，AI 自动理解意图并执行对应的 PS 操作，且过程不依赖易中断的环境，具有生产级的高可用性。
 
-## Current Milestone: 规划下一个 Milestone
+## Current Milestone: v1.3 COM 接口高级能力实现
 
-**Goal:** 探索更多的创意自动化工作流或图像生成能力融合。
+**Goal:** 基于 `COM-CAPABILITIES-REFERENCE.md`，全面实现 3、4、5、6 四大核心能力模块的接入，使 AI 助手掌握高级修图与工作流自动化能力。
+
+**Target features:**
+- 3. 选区与蒙版 (Selection & Mask)
+- 4. 专业调色与光影 (Color Correction)
+- 5. 高级滤镜与人像美化 (Filters & Retouching)
+- 6. 自动化与动作集成 (Automation & Actions)
 
 ## Requirements
 
@@ -35,7 +41,10 @@
 
 ### Active
 
-- (Planning next milestone)
+- 3. 选区与蒙版 (Selection & Mask) 功能接入
+- 4. 专业调色与光影 (Color Correction) 功能接入
+- 5. 高级滤镜与人像美化 (Filters & Retouching) 功能接入
+- 6. 自动化与动作集成 (Automation & Actions) 功能接入
 
 ### Out of Scope
 
@@ -90,4 +99,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-13 after milestone v1.2 completion*
+*Last updated: 2026-06-13 after milestone v1.3 initialized*

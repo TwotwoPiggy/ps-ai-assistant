@@ -753,3 +753,677 @@ def convert_to_smart_object(ctx: PhotoshopContext, layer_name: str = None) -> di
         return {"success": True, "message": f"成功将图层 '{layer.Name}' 转换为智能对象"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+def basic_selection(ctx: PhotoshopContext, action: str, bounds: list = None, selection_mode: str = 'replace') -> dict:
+    """在 Photoshop 中进行基础选区控制（创建矩形/椭圆选区、全选、反选、取消选择）。
+
+    Args:
+        action: 选区行为。可选值：'rect' (创建矩形选区), 'ellipse' (创建椭圆选区), 'all' (全选), 'invert' (反选), 'deselect' (取消选择)
+        bounds: 创建选区时的边界坐标 [top, left, bottom, right] (像素)，仅在 action 为 'rect' 或 'ellipse' 时需要。
+        selection_mode: 选区模式。可选值：'replace' (替代当前选区), 'add' (添加到选区), 'subtract' (从选区减去), 'intersect' (与当前选区交叉)。默认 'replace'。
+    """
+    try:
+        doc = ctx.get_doc()
+        
+        # 处理不需要 bounds 的全局选区操作
+        if action == 'all':
+            doc.Selection.SelectAll()
+            return {"success": True, "message": "已全选当前画布"}
+        elif action == 'invert':
+            doc.Selection.Invert()
+            return {"success": True, "message": "已反选当前选区"}
+        elif action == 'deselect':
+            doc.Selection.Deselect()
+            return {"success": True, "message": "已取消当前所有选区"}
+            
+        # 针对需要 bounds 的操作 (rect, ellipse)
+        if action not in ['rect', 'ellipse']:
+            return {"success": False, "error": f"不支持的选区操作动作 '{action}'"}
+            
+        if not bounds or not isinstance(bounds, (list, tuple)) or len(bounds) != 4:
+            return {"success": False, "error": "创建选区需要有效的 bounds 参数，格式为 [top, left, bottom, right]"}
+            
+        top, left, bottom, right = bounds
+        
+        # 使用 JSX 统一处理矩形与椭圆选区，因为 COM 传递嵌套数组易出错，且 DOM 不直接支持椭圆选区
+        jsx_code = f"""
+        (function() {{
+            var top = {top};
+            var left = {left};
+            var bottom = {bottom};
+            var right = {right};
+            var mode = "{selection_mode.lower()}";
+            var shape = "{action}";
+            
+            var actionID = charIDToTypeID("setd");
+            if (mode === "add") actionID = charIDToTypeID("Add ");
+            else if (mode === "subtract") actionID = charIDToTypeID("Sbt ");
+            else if (mode === "intersect") actionID = charIDToTypeID("Intr");
+
+            var desc1 = new ActionDescriptor();
+            var ref1 = new ActionReference();
+            ref1.putProperty( charIDToTypeID("Chnl"), charIDToTypeID("fsel") );
+            desc1.putReference( charIDToTypeID("null"), ref1 );
+            
+            var desc2 = new ActionDescriptor();
+            desc2.putUnitDouble( charIDToTypeID("Top "), charIDToTypeID("#Rlt"), top );
+            desc2.putUnitDouble( charIDToTypeID("Left"), charIDToTypeID("#Rlt"), left );
+            desc2.putUnitDouble( charIDToTypeID("Btom"), charIDToTypeID("#Rlt"), bottom );
+            desc2.putUnitDouble( charIDToTypeID("Rght"), charIDToTypeID("#Rlt"), right );
+            
+            var shapeID = charIDToTypeID(shape === "ellipse" ? "Elps" : "Rctn");
+            desc1.putObject( charIDToTypeID("T   "), shapeID, desc2 );
+            executeAction( actionID, desc1, DialogModes.NO );
+            return "success";
+        }})();
+        """
+        
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            raise Exception(res.get("error", "JSX 执行失败"))
+            
+        shape_cn = "矩形" if action == 'rect' else "椭圆"
+        mode_cn = {"replace": "新选区", "add": "加选", "subtract": "减选", "intersect": "交叉"}.get(selection_mode, selection_mode)
+        return {"success": True, "message": f"成功创建{shape_cn}选区({mode_cn}): top={top}, left={left}, bottom={bottom}, right={right}"}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def modify_selection(ctx: PhotoshopContext, action: str, value: int) -> dict:
+    """修改当前的选区边界（羽化、扩展、收缩、平滑、边界）。
+
+    Args:
+        action: 修改类型。可选值：'feather' (羽化), 'expand' (扩展), 'contract' (收缩), 'smooth' (平滑), 'border' (边界)。
+        value: 修改像素值 (正整数，通常为 1-100)。
+    """
+    if value <= 0:
+        return {"success": False, "error": f"无效的修改像素值 {value}，必须为正整数"}
+        
+    action_map = {
+        'feather': '羽化',
+        'expand': '扩展',
+        'contract': '收缩',
+        'smooth': '平滑',
+        'border': '边界'
+    }
+    
+    if action not in action_map:
+        return {"success": False, "error": f"不支持的选区修改类型 '{action}'"}
+        
+    try:
+        jsx_code = f"""
+        (function() {{
+            var action = "{action}";
+            var val = {value};
+            var sel = app.activeDocument.selection;
+            if (action === "feather") {{
+                sel.feather(val);
+            }} else if (action === "expand") {{
+                sel.expand(val);
+            }} else if (action === "contract") {{
+                sel.contract(val);
+            }} else if (action === "smooth") {{
+                sel.smooth(val);
+            }} else if (action === "border") {{
+                sel.border(val);
+            }}
+            return "success";
+        }})();
+        """
+        
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            # 当当前没有活跃的选区时，上述方法在 JSX 中会抛出错误
+            err_msg = res.get("error", "").lower()
+            if "not exist" in err_msg or "empty" in err_msg or "selection" in err_msg:
+                return {"success": False, "error": "当前画面中没有选区，请先创建选区后再进行修改"}
+            raise Exception(res.get("error", "JSX 执行失败"))
+            
+        return {"success": True, "message": f"已成功将当前选区进行 {action_map[action]} 处理，像素值: {value}"}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def smart_selection(ctx: PhotoshopContext, action: str) -> dict:
+    """使用 Photoshop 的 AI 智能功能快速处理选区（智能选择主体、自动删除背景）。
+
+    Args:
+        action: 智能处理动作。可选值：'subject' (选择图像中的主体物), 'remove_bg' (智能移除图像背景)。
+    """
+    if action not in ['subject', 'remove_bg']:
+        return {"success": False, "error": f"不支持的智能动作 '{action}'"}
+        
+    try:
+        if action == 'subject':
+            # 智能主体选择的 ActionManager 脚本
+            jsx_code = """
+            (function() {
+                try { app.activeDocument.selection.deselect(); } catch(e) {}
+                
+                var idautoCutout = stringIDToTypeID( "autoCutout" );
+                var desc = new ActionDescriptor();
+                var idsampleAllLayers = stringIDToTypeID( "sampleAllLayers" );
+                desc.putBoolean( idsampleAllLayers, false );
+                executeAction( idautoCutout, desc, DialogModes.NO );
+                
+                var hasSelection = false;
+                try {
+                    var sb = app.activeDocument.selection.bounds;
+                    hasSelection = true;
+                } catch(e) {}
+                
+                if (!hasSelection) {
+                    throw new Error("NO_SUBJECT_FOUND");
+                }
+                return "success";
+            })();
+            """
+            action_desc = "智能选择主体"
+        else:
+            # 自动移除背景的 ActionManager 脚本
+            jsx_code = """
+            (function() {
+                var idquickActionRemoveBackground = stringIDToTypeID( "quickActionRemoveBackground" );
+                var desc = new ActionDescriptor();
+                executeAction( idquickActionRemoveBackground, desc, DialogModes.NO );
+                
+                var ref = new ActionReference();
+                ref.putEnumerated( charIDToTypeID("Lyr "), charIDToTypeID("Ordn"), charIDToTypeID("Trgt") );
+                var layerDesc = executeActionGet(ref);
+                if (!layerDesc.getBoolean(stringIDToTypeID("hasUserMask"))) {
+                    throw new Error("NO_SUBJECT_FOUND");
+                }
+                return "success";
+            })();
+            """
+            action_desc = "自动移除背景"
+            
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            # 捕获 AI 工具失败时的异常，返回友好的中文提示
+            logger.warning(f"智能动作失败: {res.get('error')}")
+            return {"success": False, "error": f"{action_desc}失败或未在当前图像中找到合适的主体，请确认当前图层包含清晰的前景物体。"}
+            
+        return {"success": True, "message": f"成功执行{action_desc}"}
+        
+    except Exception as e:
+        return {"success": False, "error": f"{action_desc}失败: {str(e)}"}
+
+
+def mask_control(ctx: PhotoshopContext, action: str, layer_identify: str = None, force_apply: bool = False) -> dict:
+    """控制 Photoshop 指定图层的蒙版状态（新建、应用、删除蒙版，或者启用、停用蒙版）。如果不指定图层标识符，则自动对当前活动图层生效。
+
+    Args:
+        action: 蒙版操作动作。可选值：
+                - 'add': 从当前选区创建图层蒙版（如果没有选区，则创建全显蒙版）
+                - 'apply': 应用蒙版（破坏性像素混合）
+                - 'delete': 删除/丢弃蒙版而不应用
+                - 'enable': 启用蒙版
+                - 'disable': 停用蒙版
+        layer_identify: 可选。目标图层标识符 (例如 'layer_1')。如果不提供，将应用于当前激活/选中的图层。
+        force_apply: 是否强制执行应用蒙版操作。应用蒙版属于破坏性像素修改，默认为 False。必须显式设为 True 才能执行 'apply' 操作。
+    """
+    if action == 'apply' and not force_apply:
+        return {
+            "success": False, 
+            "error": "应用蒙版是破坏性操作（会导致被隐藏的像素永久丢失）。如果确认要应用并合并蒙版，请将 force_apply 参数显式设置为 True。"
+        }
+        
+    action_map = {
+        'add': '添加蒙版',
+        'apply': '应用蒙版',
+        'delete': '删除蒙版',
+        'enable': '启用蒙版',
+        'disable': '停用蒙版'
+    }
+    
+    if action not in action_map:
+        return {"success": False, "error": f"不支持的蒙版操作 '{action}'"}
+        
+    try:
+        doc = ctx.get_doc()
+        if layer_identify:
+            layer = ctx.resolve_layer(doc, layer_identify)
+            doc.ActiveLayer = layer
+        else:
+            layer = doc.ActiveLayer
+            
+        # 使用 JSX 进行蒙版的高级 ActionManager 操作
+        if action == 'add':
+            # 创建蒙版：如果有选区则从选区创建，否则创建全显蒙版
+            jsx_code = """
+            (function() {
+                var hasSelection = false;
+                try {
+                    var sb = app.activeDocument.selection.bounds;
+                    hasSelection = true;
+                } catch(e) {}
+                
+                var idMk = charIDToTypeID( "Mk  " );
+                var desc2 = new ActionDescriptor();
+                desc2.putClass( charIDToTypeID( "Nw  " ), charIDToTypeID( "Chnl" ) );
+                var ref1 = new ActionReference();
+                ref1.putEnumerated( charIDToTypeID( "Chnl" ), charIDToTypeID( "Chnl" ), charIDToTypeID( "Msk " ) );
+                desc2.putReference( charIDToTypeID( "At  " ), ref1 );
+                var usingVal = hasSelection ? "RvlS" : "RvlA";
+                desc2.putEnumerated( charIDToTypeID( "Usng" ), charIDToTypeID( "UsrM" ), charIDToTypeID( usingVal ) );
+                executeAction( idMk, desc2, DialogModes.NO );
+                return "success";
+            })();
+            """
+        elif action in ['apply', 'delete']:
+            # 应用或删除/丢弃蒙版
+            apply_val = "true" if action == 'apply' else "false"
+            jsx_code = f"""
+            (function() {{
+                var iddlt = charIDToTypeID( "dlt " );
+                var desc = new ActionDescriptor();
+                var ref = new ActionReference();
+                ref.putEnumerated( charIDToTypeID( "Chnl" ), charIDToTypeID( "Chnl" ), charIDToTypeID( "Msk " ) );
+                desc.putReference( charIDToTypeID( "null" ), ref );
+                desc.putBoolean( charIDToTypeID( "Aply" ), {apply_val} );
+                executeAction( iddlt, desc, DialogModes.NO );
+                return "success";
+            }})();
+            """
+        else:  # enable 或 disable
+            usr_mask = "true" if action == 'enable' else "false"
+            jsx_code = f"""
+            (function() {{
+                var idsetd = charIDToTypeID( "setd" );
+                var desc1 = new ActionDescriptor();
+                var ref1 = new ActionReference();
+                ref1.putEnumerated( charIDToTypeID( "Chnl" ), charIDToTypeID( "Chnl" ), charIDToTypeID( "Msk " ) );
+                desc1.putReference( charIDToTypeID( "null" ), ref1 );
+                var desc2 = new ActionDescriptor();
+                desc2.putBoolean( charIDToTypeID( "UsrM" ), {usr_mask} );
+                desc1.putObject( charIDToTypeID( "T   " ), charIDToTypeID( "Chnl" ), desc2 );
+                executeAction( idsetd, desc1, DialogModes.NO );
+                return "success";
+            }})();
+            """
+            
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            # 通常蒙版操作失败是因为当前图层并没有蒙版（例如在没有蒙版时执行 apply, delete, enable, disable）
+            err_msg = res.get("error", "").lower()
+            if "not available" in err_msg or "error" in err_msg:
+                return {"success": False, "error": f"对图层 '{layer.Name}' 执行{action_map[action]}失败，可能是由于该图层不存在图层蒙版。"}
+            raise Exception(res.get("error", "JSX 执行失败"))
+            
+        return {"success": True, "message": f"成功在图层 '{layer.Name}' 上执行{action_map[action]}操作"}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def channel_control(ctx: PhotoshopContext, action: str, channel_name: str = None) -> dict:
+    """控制选区的通道存储和载入（实现选区的存储与读取）。
+
+    Args:
+        action: 通道控制动作。可选值：'save_selection' (将当前选区存储为通道), 'load_selection' (从已有通道载入选区)。
+        channel_name: 通道名称。如果存储选区时未指定，系统会自动以 Selection_YYYYMMDD_HHMMSS 格式命名。
+    """
+    if action not in ['save_selection', 'load_selection']:
+        return {"success": False, "error": f"不支持的通道操作 '{action}'"}
+        
+    try:
+        if action == 'save_selection':
+            if not channel_name:
+                channel_name = f"Selection_{time.strftime('%Y%m%d_%H%M%S')}"
+                
+            jsx_code = f"""
+            (function() {{
+                var chanName = "{channel_name}";
+                var doc = app.activeDocument;
+                var newChan = doc.channels.add();
+                newChan.name = chanName;
+                doc.selection.store(newChan, SelectionType.REPLACE);
+                return "success";
+            }})();
+            """
+            res = execute_jsx(ctx, jsx_code)
+            if not res["success"]:
+                err_msg = res.get("error", "").lower()
+                if "no selection" in err_msg or "empty" in err_msg or "selection" in err_msg:
+                    return {"success": False, "error": "当前画面中没有选区，无法保存为空通道"}
+                raise Exception(res.get("error", "JSX 执行失败"))
+                
+            return {"success": True, "message": f"已成功将当前选区存入通道，通道名称为: '{channel_name}'"}
+            
+        else:  # load_selection
+            if not channel_name:
+                return {"success": False, "error": "载入选区必须指定 channel_name"}
+                
+            jsx_code = f"""
+            (function() {{
+                var chanName = "{channel_name}";
+                var doc = app.activeDocument;
+                var chan = null;
+                for (var i = 0; i < doc.channels.length; i++) {{
+                    if (doc.channels[i].name === chanName) {{
+                        chan = doc.channels[i];
+                        break;
+                    }}
+                }}
+                if (!chan) {{
+                    throw new Error("NOT_FOUND");
+                }}
+                doc.selection.load(chan, SelectionType.REPLACE);
+                return "success";
+            }})();
+            """
+            res = execute_jsx(ctx, jsx_code)
+            if not res["success"]:
+                err_msg = res.get("error", "").lower()
+                if "not_found" in err_msg:
+                    return {"success": False, "error": f"在当前文档中未找到名称为 '{channel_name}' 的通道"}
+                raise Exception(res.get("error", "JSX 执行失败"))
+                
+            return {"success": True, "message": f"已成功从通道 '{channel_name}' 中载入选区"}
+            
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def set_color(ctx: PhotoshopContext, target: str, color_format: str, color_value: any) -> dict:
+    """设置前景色或背景色。
+    
+    当用户要求设置或应用一个模糊颜色且提供了参考图片时，大模型应该主动利用多模态视觉能力提取图片中主色调的 HEX 值传入此方法。
+    
+    Args:
+        target: 'foreground' 或 'background'
+        color_format: 'hex', 'rgb', 'hsb', 'cmyk'
+        color_value: 色值。'hex'应为'#RRGGBB'或'RRGGBB'; rgb为[R,G,B]; hsb为[H,S,B]; cmyk为[C,M,Y,K]
+    """
+    try:
+        fmt = color_format.lower()
+        tgt = target.lower()
+        if tgt not in ['foreground', 'background']:
+            return {"success": False, "error": f"不支持的目标 '{target}'"}
+            
+        if fmt == 'hex':
+            hex_str = str(color_value).lstrip('#')
+            if len(hex_str) != 6:
+                return {"success": False, "error": "HEX色值必须为6位"}
+            color_setter = f"color.rgb.hexValue = '{hex_str}';"
+        elif fmt == 'rgb':
+            color_setter = f"""
+            color.rgb.red = {float(color_value[0])};
+            color.rgb.green = {float(color_value[1])};
+            color.rgb.blue = {float(color_value[2])};
+            """
+        elif fmt == 'hsb':
+            color_setter = f"""
+            color.hsb.hue = {float(color_value[0])};
+            color.hsb.saturation = {float(color_value[1])};
+            color.hsb.brightness = {float(color_value[2])};
+            """
+        elif fmt == 'cmyk':
+            color_setter = f"""
+            color.cmyk.cyan = {float(color_value[0])};
+            color.cmyk.magenta = {float(color_value[1])};
+            color.cmyk.yellow = {float(color_value[2])};
+            color.cmyk.black = {float(color_value[3])};
+            """
+        else:
+            return {"success": False, "error": f"不支持的颜色格式 '{color_format}'"}
+
+        target_prop = "foregroundColor" if tgt == "foreground" else "backgroundColor"
+        
+        jsx_code = f"""
+        (function() {{
+            var color = new SolidColor();
+            {color_setter}
+            app.{target_prop} = color;
+            return "success";
+        }})();
+        """
+        
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            raise Exception(res.get("error", "JSX 执行失败"))
+            
+        return {"success": True, "message": f"成功设置{'前景色' if tgt == 'foreground' else '背景色'}为 {color_value} ({color_format})"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def fill_selection(ctx: PhotoshopContext, fill_type: str) -> dict:
+    """对当前选区执行填充操作。支持颜色填充、内容识别(CAF)填充等。
+    
+    Args:
+        fill_type: 填充类型。可选值：'foreground', 'background', 'content_aware', 'pattern', 'black', 'white', 'gray'
+    """
+    try:
+        doc = ctx.get_doc()
+        
+        # 安全拦截：如果没有选区且执行内容识别，必须拦截
+        try:
+            bounds = doc.Selection.Bounds
+            is_empty_selection = False
+        except Exception:
+            is_empty_selection = True
+            
+        if is_empty_selection and fill_type == 'content_aware':
+            return {"success": False, "error": "当前没有有效选区，内容识别填充已被拦截，请先创建选区。"}
+            
+        if fill_type == 'content_aware':
+            jsx_code = """
+            var idFl = charIDToTypeID( "Fl  " );
+            var desc = new ActionDescriptor();
+            var idUsng = charIDToTypeID( "Usng" );
+            var idFlCn = charIDToTypeID( "FlCn" );
+            var idCntA = charIDToTypeID( "CntA" ); // Content-Aware
+            desc.putEnumerated( idUsng, idFlCn, idCntA );
+            executeAction( idFl, desc, DialogModes.NO );
+            """
+            res = execute_jsx(ctx, jsx_code)
+            if not res["success"]:
+                raise Exception(res.get("error", "JSX执行失败"))
+            return {"success": True, "message": "成功执行内容识别填充(Content-Aware Fill)"}
+            
+        type_map = {
+            'foreground': 1,
+            'background': 2,
+            'pattern': 3,
+            'black': 4,
+            'white': 5,
+            'gray': 6
+        }
+        
+        if fill_type not in type_map:
+            return {"success": False, "error": f"不支持的填充类型 '{fill_type}'"}
+            
+        doc.Selection.Fill(type_map[fill_type])
+        return {"success": True, "message": f"成功使用 '{fill_type}' 填充选区"}
+    except Exception as e:
+        err_msg = str(e).lower()
+        if "bounds" in err_msg or "empty" in err_msg or "空" in err_msg:
+            return {"success": False, "error": "当前没有有效选区，请先创建选区后再执行填充操作。"}
+        return {"success": False, "error": str(e)}
+
+def color_correction(ctx: PhotoshopContext, correction_type: str, is_adjustment_layer: bool = True, params: dict = None) -> dict:
+    """统一调色处理 API，支持色阶 (Levels)。
+    支持通过 is_adjustment_layer 选择是新建无损调整图层还是破坏性直接修改图层。
+    
+    模糊修图指令应当询问用户是否使用无损调整图层。高级子通道参数请按需使用，建议以主通道调节为主。
+    
+    Args:
+        correction_type: 'levels'
+        is_adjustment_layer: 是否以调整图层的形式应用。
+        params: 调色参数字典。对于 'levels':
+               主通道参数：'master': {'input': [0, 255], 'output': [0, 255], 'gamma': 1.0}
+               子通道参数：'red', 'green', 'blue' 结构同上。
+    """
+    if params is None:
+        params = {}
+        
+    try:
+        # 强制前置拦截：确保有活动文档，否则 DoJavaScript 在无文档时运行会引发 Photoshop 卡死
+        doc = ctx.get_doc()
+        
+        if correction_type == 'levels':
+            channels_to_add = []
+            
+            # 主通道 (Composite)
+            master = params.get('master', {})
+            if master or ('red' not in params and 'green' not in params and 'blue' not in params):
+                channels_to_add.append(("Cmpc", master.get('input', [0, 255]), master.get('output', [0, 255]), master.get('gamma', 1.0)))
+                
+            # 子通道：红、绿、蓝
+            red = params.get('red', {})
+            if red:
+                channels_to_add.append(("Rd  ", red.get('input', [0, 255]), red.get('output', [0, 255]), red.get('gamma', 1.0)))
+                
+            green = params.get('green', {})
+            if green:
+                channels_to_add.append(("Grn ", green.get('input', [0, 255]), green.get('output', [0, 255]), green.get('gamma', 1.0)))
+                
+            blue = params.get('blue', {})
+            if blue:
+                channels_to_add.append(("Bl  ", blue.get('input', [0, 255]), blue.get('output', [0, 255]), blue.get('gamma', 1.0)))
+                
+            add_channel_calls = []
+            for ch_code, ch_in, ch_out, ch_gamma in channels_to_add:
+                add_channel_calls.append(f'addChannel("{ch_code}", {ch_in[0]}, {ch_in[1]}, {ch_gamma}, {ch_out[0]}, {ch_out[1]});')
+            add_channel_jsx = "\n                    ".join(add_channel_calls)
+            
+            jsx_code = f"""
+            (function(){{
+                try {{
+                    var isLayer = {str(is_adjustment_layer).lower()};
+                    
+                    var buildLevelsDesc = function() {{
+                        var desc = new ActionDescriptor();
+                        var idpresetKind = stringIDToTypeID( "presetKind" );
+                        var idpresetKindType = stringIDToTypeID( "presetKindType" );
+                        var idpresetKindCustom = stringIDToTypeID( "presetKindCustom" );
+                        desc.putEnumerated( idpresetKind, idpresetKindType, idpresetKindCustom );
+                        
+                        var list = new ActionList();
+                        
+                        var addChannel = function(channelCode, inputMin, inputMax, gamma, outMin, outMax) {{
+                            var d = new ActionDescriptor();
+                            var idChnl = charIDToTypeID( "Chnl" );
+                            var ref = new ActionReference();
+                            ref.putEnumerated( charIDToTypeID( "Chnl" ), charIDToTypeID( "Chnl" ), charIDToTypeID( channelCode ) );
+                            d.putReference( idChnl, ref );
+                            var idInpt = charIDToTypeID( "Inpt" );
+                            var listIn = new ActionList();
+                            listIn.putInteger( inputMin );
+                            listIn.putInteger( inputMax );
+                            d.putList( idInpt, listIn );
+                            var idGmm = charIDToTypeID( "Gmm " );
+                            d.putDouble( idGmm, gamma );
+                            var idOtpt = charIDToTypeID( "Otpt" );
+                            var listOut = new ActionList();
+                            listOut.putInteger( outMin );
+                            listOut.putInteger( outMax );
+                            d.putList( idOtpt, listOut );
+                            
+                            var idLvlA = charIDToTypeID( "LvlA" );
+                            list.putObject( idLvlA, d );
+                        }};
+                        
+                        {add_channel_jsx}
+                        
+                        var idAdjs = charIDToTypeID( "Adjs" );
+                        desc.putList( idAdjs, list );
+                        return desc;
+                    }};
+                    
+                    var desc = buildLevelsDesc();
+                    
+                    if (isLayer) {{
+                        var idMk = charIDToTypeID( "Mk  " );
+                        var d2 = new ActionDescriptor();
+                        var idnull = charIDToTypeID( "null" );
+                        var ref2 = new ActionReference();
+                        var idAdjL = charIDToTypeID( "AdjL" );
+                        ref2.putClass( idAdjL );
+                        d2.putReference( idnull, ref2 );
+                        var idUsng = charIDToTypeID( "Usng" );
+                        var d3 = new ActionDescriptor();
+                        var idType = charIDToTypeID( "Type" );
+                        var idLvls = charIDToTypeID( "Lvls" );
+                        d3.putObject( idType, idLvls, desc );
+                        d2.putObject( idUsng, idAdjL, d3 );
+                        executeAction( idMk, d2, DialogModes.NO );
+                    }} else {{
+                        var idLvls = charIDToTypeID( "Lvls" );
+                        executeAction( idLvls, desc, DialogModes.NO );
+                    }}
+                    return "success";
+                }} catch(e) {{
+                    return "error: " + e.toString();
+                }}
+            }})();
+            """
+            res = execute_jsx(ctx, jsx_code)
+            if not res["success"]:
+                raise Exception(res.get("error", "Levels 调整失败"))
+                
+            exec_res = res.get("result", "")
+            if exec_res and str(exec_res).startswith("error:"):
+                return {"success": False, "error": f"Photoshop 内部调色执行失败: {exec_res}"}
+                
+        else:
+            return {"success": False, "error": f"不支持的调色类型 '{correction_type}'。目前支持 'levels'。"}
+            
+        mode_str = "无损调整图层" if is_adjustment_layer else "直接像素修改"
+        return {"success": True, "message": f"成功使用 {mode_str} 模式应用了 '{correction_type}'"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def stroke_selection(ctx: PhotoshopContext, width: int, location: str = 'center', color_hex: str = "#000000") -> dict:
+    """对当前选区执行描边操作。
+    
+    Args:
+        width: 描边宽度 (像素)
+        location: 描边位置。'inside', 'center', 'outside'
+        color_hex: 描边颜色 (HEX)，如 "#FF0000"
+    """
+    try:
+        hex_str = color_hex.lstrip('#')
+        if len(hex_str) != 6:
+            return {"success": False, "error": "HEX色值必须为6位"}
+            
+        loc_map = {
+            'inside': "StrokeLocation.INSIDE",
+            'center': "StrokeLocation.CENTER",
+            'outside': "StrokeLocation.OUTSIDE"
+        }
+        if location not in loc_map:
+            return {"success": False, "error": f"不支持的描边位置 '{location}'"}
+            
+        stroke_loc = loc_map[location]
+        
+        jsx_code = f"""
+        (function() {{
+            var doc = app.activeDocument;
+            var color = new SolidColor();
+            color.rgb.hexValue = '{hex_str}';
+            
+            try {{
+                var bounds = doc.selection.bounds;
+            }} catch(e) {{
+                throw new Error("NO_SELECTION");
+            }}
+            
+            doc.selection.stroke(color, {width}, {stroke_loc});
+            return "success";
+        }})();
+        """
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            err_msg = res.get("error", "").lower()
+            if "no_selection" in err_msg or "bounds" in err_msg:
+                return {"success": False, "error": "当前没有有效选区，无法执行描边。"}
+            raise Exception(res.get("error", "描边执行失败"))
+            
+        return {"success": True, "message": f"成功以宽度 {width} 和颜色 {color_hex} 为选区描边"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+

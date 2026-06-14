@@ -78,3 +78,16 @@ registry.register(ps_tools.merge_layers)
 registry.register(ps_tools.duplicate_layer)
 registry.register(ps_tools.rasterize_layer)
 registry.register(ps_tools.convert_to_smart_object)
+
+# 注册选区与蒙版控制工具
+registry.register(ps_tools.basic_selection)
+registry.register(ps_tools.modify_selection)
+registry.register(ps_tools.smart_selection)
+registry.register(ps_tools.mask_control)
+registry.register(ps_tools.channel_control)
+
+# 注册专业调色与光影实现工具
+registry.register(ps_tools.set_color)
+registry.register(ps_tools.fill_selection)
+registry.register(ps_tools.color_correction)
+registry.register(ps_tools.stroke_selection)
