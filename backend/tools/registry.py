@@ -78,3 +78,29 @@ registry.register(ps_tools.merge_layers)
 registry.register(ps_tools.duplicate_layer)
 registry.register(ps_tools.rasterize_layer)
 registry.register(ps_tools.convert_to_smart_object)
+
+# 注册选区与蒙版控制工具
+registry.register(ps_tools.basic_selection)
+registry.register(ps_tools.modify_selection)
+registry.register(ps_tools.smart_selection)
+registry.register(ps_tools.mask_control)
+registry.register(ps_tools.channel_control)
+
+# 注册专业调色与光影实现工具
+registry.register(ps_tools.set_color)
+registry.register(ps_tools.fill_selection)
+registry.register(ps_tools.color_correction)
+registry.register(ps_tools.stroke_selection)
+
+# 注册高级滤镜与美化工具
+registry.register(ps_tools.apply_blur_sharpen)
+registry.register(ps_tools.apply_liquify)
+registry.register(ps_tools.apply_camera_raw_preset)
+registry.register(ps_tools.apply_neural_filter)
+registry.register(ps_tools.apply_commercial_retouch)
+registry.register(ps_tools.apply_generative_fill)
+
+# 注册自动化与动作集成工具
+registry.register(ps_tools.play_action)
+registry.register(ps_tools.execute_local_jsx)
+registry.register(ps_tools.export_for_web)

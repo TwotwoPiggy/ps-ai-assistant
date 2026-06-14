@@ -34,3 +34,7 @@ Thumbs.db
 *.local.json
 *.local.js
 *.local.ts
+
+# 启动器日志
+logs/
+launcher_*.log

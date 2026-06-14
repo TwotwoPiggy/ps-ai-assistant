@@ -385,3 +385,100 @@ body {
     color: #999;
     background-color: rgba(0, 0, 0, 0.15);
 }
+
+/* Image Upload & Preview Styles */
+.sdppp-ai-chat-input-wrapper {
+    display: flex;
+    flex-direction: column;
+    background-color: #383838;
+    border-top: 1px solid #444;
+}
+
+.sdppp-ai-image-preview-container {
+    padding: 10px 16px 0 16px;
+    display: flex;
+    gap: 10px;
+}
+
+.sdppp-ai-image-preview {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #555;
+    background-color: #222;
+}
+
+.sdppp-ai-image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.sdppp-ai-image-preview-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+}
+
+.sdppp-ai-image-preview-remove:hover {
+    background-color: #ff4d4d;
+}
+
+.sdppp-ai-chat-input-bar {
+    padding: 12px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    border-top: none; /* Overriding previous border as it's now on wrapper */
+}
+
+.sdppp-ai-upload-btn {
+    background: transparent;
+    border: 1px solid #555;
+    color: #e0e0e0;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.sdppp-ai-upload-btn:hover {
+    background-color: #444;
+    border-color: #bb86fc;
+}
+
+.sdppp-ai-upload-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #555;
+}
+
+.sdppp-chat-image-attachment {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    object-fit: contain;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+

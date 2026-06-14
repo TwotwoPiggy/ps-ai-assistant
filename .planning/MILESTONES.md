@@ -1,5 +1,25 @@
 # Milestones
 
+## v1.3 COM 接口高级能力实现 (Shipped: 2026-06-14)
+
+**Phases completed:** 4 phases, 4 plans, 7 tasks
+
+**Key accomplishments:**
+
+- 成功实现了各类高级滤镜 API、AI 滤镜（液化/神经元）集成、无损商业磨皮及带选区防御的生成式填充。
+
+---
+
+## v1.2 Photoshop 核心功能全面 UXP 迁移与重构 (Shipped: 2026-06-13)
+
+**Phases completed:** 3 phases, 3 plans, 7 tasks
+
+**Key accomplishments:**
+
+- 在 ps_tools 中成功改造并引入了 8 个全新的文档与视图管理 COM 工具，底层原生支持 DoJavaScript 注入，并在 registry 中全量注册
+
+---
+
 ## v1.1 研究并整理uxp支持的所有操作有哪些 (Shipped: 2026-06-13)
 
 **Phases completed:** 3 phases, 5 plans, 0 tasks
