@@ -100,3 +100,7 @@ registry.register(ps_tools.apply_neural_filter)
 registry.register(ps_tools.apply_commercial_retouch)
 registry.register(ps_tools.apply_generative_fill)
 
+# 注册自动化与动作集成工具
+registry.register(ps_tools.play_action)
+registry.register(ps_tools.execute_local_jsx)
+registry.register(ps_tools.export_for_web)

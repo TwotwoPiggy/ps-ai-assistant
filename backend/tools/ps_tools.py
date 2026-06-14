@@ -1790,6 +1790,122 @@ def apply_generative_fill(ctx: PhotoshopContext, prompt: str = "") -> dict:
         return {"success": False, "error": str(e)}
 
 
+def play_action(ctx: PhotoshopContext, action_name: str, action_set_name: str) -> dict:
+    """执行 Photoshop 中的录制动作 (Action)。
+    
+    为避免带有阻塞性交互的动作（如调色弹窗）导致假死，此方法允许原生对话框弹出供用户干预。
+    
+    Args:
+        action_name: 要执行的动作名称。
+        action_set_name: 动作所在的动作集名称。
+    """
+    try:
+        jsx_code = f"""
+        (function() {{
+            var idPlay = charIDToTypeID( "Ply " );
+            var desc = new ActionDescriptor();
+            var idnull = charIDToTypeID( "null" );
+            var ref = new ActionReference();
+            var idActn = charIDToTypeID( "Actn" );
+            ref.putName( idActn, "{action_name}" );
+            var idASet = charIDToTypeID( "ASet" );
+            ref.putName( idASet, "{action_set_name}" );
+            desc.putReference( idnull, ref );
+            // 决策 D-02: 不强制静默，允许原生对话框
+            executeAction( idPlay, desc, DialogModes.ALL );
+            return "success";
+        }})();
+        """
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            raise Exception(res.get("error", "Action 执行失败"))
+        return {"success": True, "message": f"动作 '{action_set_name} -> {action_name}' 已成功执行"}
+    except Exception as e:
+        return {"success": False, "error": f"调用动作失败 (请检查动作名称是否大小写完全匹配，或图层结构是否符合动作要求): {str(e)}"}
 
+def execute_local_jsx(ctx: PhotoshopContext, script_path: str, user_confirmed: bool = False) -> dict:
+    """加载并执行本地绝对或相对路径的 JSX 扩展脚本。
+    
+    Args:
+        script_path: 要执行的 JSX 脚本文件路径。
+        user_confirmed: 是否经过用户明确授权。安全机制要求不在白名单内的脚本必须由大模型前置询问用户，并在获得允许后传入 True。
+    """
+    try:
+        script_path = os.path.abspath(script_path)
+        whitelist_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "resources", "scripts"))
+        
+        # 决策 D-01: 路径权限策略
+        if not script_path.startswith(whitelist_dir):
+            if not user_confirmed:
+                return {
+                    "success": False, 
+                    "error": f"安全拦截: 执行外部脚本存在风险。请先向用户询问是否允许执行此路径的脚本 ({script_path})。如果用户同意，请带上 user_confirmed=True 重新调用。"
+                }
+                
+        if not os.path.exists(script_path):
+            return {"success": False, "error": f"脚本文件不存在: {script_path}"}
+            
+        with open(script_path, "r", encoding="utf-8") as f:
+            jsx_code = f.read()
+            
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            raise Exception(res.get("error", "本地 JSX 脚本执行失败"))
+            
+        return {"success": True, "message": f"成功执行本地脚本: {os.path.basename(script_path)}", "result": res.get("result", "")}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
-
+def export_for_web(ctx: PhotoshopContext, format: str = "PNG-24", export_path: str = "") -> dict:
+    """自动将当前画布切片或全图以 Web 适用格式导出。
+    
+    Args:
+        format: 导出格式，目前支持 "PNG-24", "JPEG"。默认为 "PNG-24" 以保持最佳质量。
+        export_path: 可选的导出绝对路径。若未提供，默认输出至系统桌面。
+    """
+    try:
+        doc = ctx.get_doc()
+        
+        # 防呆：文档尺寸检查
+        if float(doc.Width) > 8192 or float(doc.Height) > 8192:
+            return {"success": False, "error": "SaveForWeb 不支持边长超过 8192px 的图像，请先使用 resize_image 或 resize_canvas 缩小图像。"}
+            
+        if not export_path:
+            desktop = os.path.expanduser("~/Desktop")
+            timestamp = int(time.time())
+            export_path = os.path.join(desktop, f"ps_ai_web_export_{timestamp}.png" if "PNG" in format else f"ps_ai_web_export_{timestamp}.jpg")
+            
+        export_path = os.path.abspath(export_path)
+        
+        # 转换斜杠以兼容 JSX
+        jsx_path = export_path.replace("\\", "/")
+        
+        is_png = "PNG" in format.upper()
+        
+        # 使用 JSX 导出规避部分 COM 层级缺陷
+        jsx_code = f"""
+        (function() {{
+            var doc = app.activeDocument;
+            var file = new File("{jsx_path}");
+            var options = new ExportOptionsSaveForWeb();
+            
+            if ({str(is_png).lower()}) {{
+                options.format = SaveDocumentType.PNG;
+                options.PNG8 = false;
+            }} else {{
+                options.format = SaveDocumentType.JPEG;
+                options.quality = 80;
+            }}
+            
+            doc.exportDocument(file, ExportType.SAVEFORWEB, options);
+            return "success";
+        }})();
+        """
+        
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            raise Exception(res.get("error", "导出脚本执行失败"))
+            
+        return {"success": True, "message": f"Web 切片成功导出至桌面 (或指定路径): {export_path}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

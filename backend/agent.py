@@ -237,7 +237,7 @@ class PhotoshopAgent:
                 args = tool_call.get("args")
 
                 if status_callback:
-                    interactive_tools = ["apply_liquify", "apply_neural_filter", "apply_camera_raw_preset"]
+                    interactive_tools = ["apply_liquify", "apply_neural_filter", "apply_camera_raw_preset", "play_action", "execute_local_jsx"]
                     if name in interactive_tools:
                         await status_callback("executing", f"正在唤起面板: {name}... (请前往 Photoshop 原生界面完成操作并点击确定)")
                     else:
