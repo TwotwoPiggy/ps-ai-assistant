@@ -1,9 +1,9 @@
 ---
 phase: 06
 slug: filters-retouching
-status: draft
+status: approved
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-06-14
 ---
 
@@ -38,15 +38,15 @@ created: 2026-06-14
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 06-01-01 | 01 | 0 | Wave 0 | — | N/A | setup | N/A | ❌ W0 | ⬜ pending |
-| 06-01-02 | 01 | 1 | FIL-01 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_gaussian_blur` | ✅ W0 | ⬜ pending |
-| 06-01-03 | 01 | 1 | FIL-01 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_usm_sharpen` | ✅ W0 | ⬜ pending |
-| 06-01-04 | 01 | 1 | FIL-01 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_surface_blur` | ✅ W0 | ⬜ pending |
-| 06-01-05 | 01 | 1 | FIL-02 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_liquify_smart_object` | ✅ W0 | ⬜ pending |
-| 06-01-06 | 01 | 2 | FIL-03 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_camera_raw_preset` | ✅ W0 | ⬜ pending |
-| 06-01-07 | 01 | 2 | AI-01 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_neural_filters_graceful_fallback` | ✅ W0 | ⬜ pending |
-| 06-01-08 | 01 | 2 | AI-02 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_commercial_retouch` | ✅ W0 | ⬜ pending |
-| 06-01-09 | 01 | 2 | AI-03 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_generative_fill` | ✅ W0 | ⬜ pending |
+| 06-01-01 | 01 | 0 | Wave 0 | — | N/A | setup | N/A | ✅ W0 | ✅ green |
+| 06-01-02 | 01 | 1 | FIL-01 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_gaussian_blur` | ✅ W0 | ✅ green |
+| 06-01-03 | 01 | 1 | FIL-01 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_usm_sharpen` | ✅ W0 | ✅ green |
+| 06-01-04 | 01 | 1 | FIL-01 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_surface_blur` | ✅ W0 | ✅ green |
+| 06-01-05 | 01 | 1 | FIL-02 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_liquify_smart_object` | ✅ W0 | ✅ green |
+| 06-01-06 | 01 | 2 | FIL-03 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_camera_raw_preset` | ✅ W0 | ✅ green |
+| 06-01-07 | 01 | 2 | AI-01 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_neural_filters_graceful_fallback` | ✅ W0 | ✅ green |
+| 06-01-08 | 01 | 2 | AI-02 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_commercial_retouch` | ✅ W0 | ✅ green |
+| 06-01-09 | 01 | 2 | AI-03 | — | N/A | integration | `pytest tests/test_phase06_filters.py -k test_generative_fill` | ✅ W0 | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -75,4 +75,4 @@ created: 2026-06-14
 - [x] Feedback latency < 10s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-06-14

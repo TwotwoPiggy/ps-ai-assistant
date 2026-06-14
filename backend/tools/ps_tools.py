@@ -1427,3 +1427,358 @@ def stroke_selection(ctx: PhotoshopContext, width: int, location: str = 'center'
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+def apply_blur_sharpen(ctx: PhotoshopContext, filter_type: str, radius: float = None, threshold: int = None, amount: float = None, clear_selection: bool = False) -> dict:
+    """对当前图层（或选区）应用模糊或锐化滤镜。
+    
+    Args:
+        filter_type: 滤镜类型。'gaussian' (高斯模糊), 'surface' (表面模糊), 'usm' (USM 锐化)
+        radius: 像素半径，可选。
+        threshold: 阈值 (仅用于表面模糊和 USM 锐化)，可选。
+        amount: 数量百分比 (仅用于 USM 锐化)，可选。
+        clear_selection: 在应用滤镜前是否强制清空当前选区以全局应用，默认 False。
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = doc.ActiveLayer
+        
+        # 决策 D-03: 如果 clear_selection 为 True，执行 JSX 清空选区
+        if clear_selection:
+            clear_jsx = "app.activeDocument.selection.deselect();"
+            execute_jsx(ctx, clear_jsx)
+            
+        if filter_type == 'gaussian':
+            r = radius if radius is not None else 5.0
+            layer.applyGaussianBlur(r)
+            return {"success": True, "message": f"图层 '{layer.Name}' 已成功应用高斯模糊 (半径: {r} px)"}
+            
+        elif filter_type == 'usm':
+            r = radius if radius is not None else 1.0
+            amt = amount if amount is not None else 50.0
+            th = threshold if threshold is not None else 4
+            layer.applyUnsharpMask(amt, r, th)
+            return {"success": True, "message": f"图层 '{layer.Name}' 已成功应用 USM 锐化 (数量: {amt}%, 半径: {r} px, 阈值: {th})"}
+            
+        elif filter_type == 'surface':
+            r = radius if radius is not None else 5.0
+            th = threshold if threshold is not None else 15
+            
+            jsx_code = f"""
+            (function() {{
+                var desc = new ActionDescriptor();
+                desc.putUnitDouble(stringIDToTypeID("radius"), stringIDToTypeID("pixelsUnit"), {r});
+                desc.putInteger(stringIDToTypeID("threshold"), {th});
+                executeAction(stringIDToTypeID("surfaceBlur"), desc, DialogModes.NO);
+                return "success";
+            }})();
+            """
+            res = execute_jsx(ctx, jsx_code)
+            if not res["success"]:
+                raise Exception(res.get("error", "表面模糊执行失败"))
+            return {"success": True, "message": f"图层 '{layer.Name}' 已成功应用表面模糊 (半径: {r} px, 阈值: {th})"}
+            
+        else:
+            return {"success": False, "error": f"不支持的滤镜类型 '{filter_type}'"}
+            
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def apply_liquify(ctx: PhotoshopContext) -> dict:
+    """交互式唤起液化滤镜。
+    会自动检测图层类型，如果是普通像素图层，会自动转换为智能对象，保证无损挂载智能滤镜。
+    因为液化滤镜为模态工作区，调用后 Photoshop 会弹出原生液化面板并阻塞进程，用户处理完毕后点击确认即可返回。
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = doc.ActiveLayer
+        
+        # 决策 D-05: 自动转换智能对象以实现无损智能滤镜
+        is_smart_object = False
+        try:
+            if int(layer.Kind) == 17:
+                is_smart_object = True
+        except Exception:
+            pass
+            
+        if not is_smart_object:
+            logger.info(f"图层 '{layer.Name}' 不是智能对象，自动转换为智能对象以进行无损液化。")
+            convert_to_smart_object(ctx)
+            layer = doc.ActiveLayer
+            
+        jsx_code = """
+        (function() {
+            var idLqFy = charIDToTypeID("LqFy");
+            executeAction(idLqFy, undefined, DialogModes.ALL); // 弹出液化面板
+            return "success";
+        })();
+        """
+        
+        print("\n[PS AI Assistant] 已在 Photoshop 中唤起液化滤镜面板，请在 Photoshop 原生界面内调整五官或形体，并点击“确定”或“取消”以继续。")
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            raise Exception(res.get("error", "液化执行失败"))
+            
+        return {"success": True, "message": f"成功在图层 '{layer.Name}' 上应用液化滤镜"}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def apply_camera_raw_preset(ctx: PhotoshopContext, preset_path: str = "", show_dialog: bool = False) -> dict:
+    """对当前活动图层应用 Camera Raw 滤镜（XMP 调色预设）。
+    会自动检测图层类型，如果是普通像素图层，会自动转换为智能对象，保证无损挂载智能滤镜。
+    
+    Args:
+        preset_path: XMP 预设文件的本地绝对路径。如果为空，将自动使用内置的胶片风格预置。
+        show_dialog: 是否交互式弹出 Camera Raw 界面以供用户手动微调参数，默认 False。
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = doc.ActiveLayer
+        
+        # 决策 D-05: 自动转换智能对象以实现无损智能滤镜
+        is_smart_object = False
+        try:
+            if int(layer.Kind) == 17:
+                is_smart_object = True
+        except Exception:
+            pass
+            
+        if not is_smart_object:
+            logger.info(f"图层 '{layer.Name}' 不是智能对象，自动转换为智能对象以进行无损 Camera Raw 调色。")
+            convert_to_smart_object(ctx)
+            layer = doc.ActiveLayer
+            
+        # 决策 D-09: 路径处理与 Fallback XMP 字符串设计
+        xmp_content = ""
+        if preset_path and os.path.exists(preset_path):
+            with open(preset_path, 'r', encoding='utf-8') as f:
+                xmp_content = f.read()
+        else:
+            # 极简通用胶片预设 Fallback
+            xmp_content = """<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 7.0-c000 79.1340">
+ <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about="" xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"
+   crs:Version="15.4" crs:ProcessVersion="15.4"
+   crs:Exposure2012="+0.30" crs:Contrast2012="+15" crs:Highlights2012="-20" crs:Shadows2012="+20"
+   crs:Clarity2012="+10" crs:Saturation="+5" crs:Sharpness="25" crs:HasSettings="True" />
+ </rdf:RDF>
+</x:xmpmeta>"""
+
+        # 对 XMP 进行转义，防范 JSX 多行或单双引号报错
+        xmp_escaped = xmp_content.replace('\\', '\\\\').replace('\'', '\\\'').replace('\n', '\\n').replace('\r', '')
+        
+        dialog_val = "true" if show_dialog else "false"
+        
+        jsx_code = f"""
+        (function() {{
+            var idACR = stringIDToTypeID("Adobe Camera Raw Filter");
+            var desc = new ActionDescriptor();
+            desc.putString(charIDToTypeID("Sett"), '{xmp_escaped}');
+            
+            var dialogMode = {dialog_val} ? DialogModes.ALL : DialogModes.NO;
+            executeAction(idACR, desc, dialogMode);
+            return "success";
+        }})();
+        """
+        
+        if show_dialog:
+            print("\n[PS AI Assistant] 已在 Photoshop 中唤起 Camera Raw 面板，请调整参数后点击“确定”以继续。")
+            
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            raise Exception(res.get("error", "Camera Raw 滤镜应用失败"))
+            
+        return {"success": True, "message": f"成功对图层 '{layer.Name}' 应用了 Camera Raw 预设滤镜"}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def apply_neural_filter(ctx: PhotoshopContext, filter_type: str, parameters: dict = None) -> dict:
+    """触发神经网络滤镜 (Neural Filters)。
+    
+    Args:
+        filter_type: 滤镜功能类型，例如 'skin_smoothing' (平滑皮肤), 'smart_portrait' (智能肖像)。
+        parameters: 可选的微调参数字典，例如 {"skin_smoothness": 50, "blemish_reduction": 50}。
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = doc.ActiveLayer
+        
+        # 决策 D-10: 神经网络滤镜环境防崩溃与降级机制
+        jsx_code = """
+        (function() {
+            try {
+                var idCmd = stringIDToTypeID("neuralFiltersCmd");
+                executeAction(idCmd, undefined, DialogModes.ALL);
+                return "success";
+            } catch(e) {
+                return "ERROR: " + e.message;
+            }
+        })();
+        """
+        
+        print(f"\n[PS AI Assistant] 正在触发神经网络滤镜 [{filter_type}]，请在 Photoshop 原生面板中处理，完成后脚本将继续运行。")
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            err_msg = res.get("error", "").lower()
+            return {
+                "success": False, 
+                "error": f"神经网络滤镜启动失败 ({err_msg})。可能是由于本地未激活、未联网或未下载该模型组件。推荐您降级使用传统的商业磨皮功能。"
+            }
+            
+        if res.get("result") and "ERROR" in str(res["result"]):
+            return {
+                "success": False,
+                "error": f"神经网络滤镜在 PS 侧执行报错 ({res['result']})。推荐您降级使用传统的商业磨皮功能。"
+            }
+            
+        return {"success": True, "message": f"成功对图层 '{layer.Name}' 触发神经网络滤镜 {filter_type}"}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def apply_commercial_retouch(ctx: PhotoshopContext, opacity: float = 100.0) -> dict:
+    """对当前活动图层执行经典的自适应商业磨皮动作流（高分离频率无损皮肤质感修饰）。
+    
+    Args:
+        opacity: 磨皮图层的不透明度 (0.0 - 100.0)，默认 100.0。
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = doc.ActiveLayer
+        
+        # 决策 D-02: 自适应分辨率像素半径换算
+        width = float(doc.Width)
+        scale_factor = width / 1920.0
+        
+        r_hp = max(1.0, round(3.0 * scale_factor, 1))
+        r_sb = max(1.0, round(3.0 * scale_factor, 1))
+        sb_threshold = 10
+        
+        logger.info(f"DPI自适应磨皮: 画布宽度为 {width} px，自适应高反差半径缩放为: {r_hp} px，表面模糊半径缩放为: {r_sb} px")
+        
+        # 决策 D-04: 静默自动新建备份图层以实现无损磨皮
+        jsx_code = f"""
+        (function() {{
+            var doc = app.activeDocument;
+            var activeLyr = doc.activeLayer;
+            
+            // 1. 复制当前图层并重命名
+            var copyLyr = activeLyr.duplicate();
+            copyLyr.name = activeLyr.name + "_磨皮";
+            doc.activeLayer = copyLyr;
+            
+            // 2. 将图层混合模式设为线性光 (Linear Light)
+            copyLyr.blendMode = BlendMode.LINEARLIGHT;
+            copyLyr.opacity = {opacity};
+            
+            // 3. 执行反相
+            executeAction(charIDToTypeID("Invt"), undefined, DialogModes.NO);
+            
+            // 4. 应用高反差保留 (High Pass)
+            var hpDesc = new ActionDescriptor();
+            hpDesc.putUnitDouble(stringIDToTypeID("radius"), stringIDToTypeID("pixelsUnit"), {r_hp});
+            executeAction(stringIDToTypeID("highPass"), hpDesc, DialogModes.NO);
+            
+            // 5. 应用表面模糊 (Surface Blur)
+            var sbDesc = new ActionDescriptor();
+            sbDesc.putUnitDouble(stringIDToTypeID("radius"), stringIDToTypeID("pixelsUnit"), {r_sb});
+            sbDesc.putInteger(stringIDToTypeID("threshold"), {sb_threshold});
+            executeAction(stringIDToTypeID("surfaceBlur"), sbDesc, DialogModes.NO);
+            
+            // 6. 添加黑色全隐蒙版 (Hide All)
+            var idMk = charIDToTypeID("Mk  ");
+            var maskDesc = new ActionDescriptor();
+            maskDesc.putClass(charIDToTypeID("Nw  "), charIDToTypeID("Chnl"));
+            var ref = new ActionReference();
+            ref.putEnumerated(charIDToTypeID("Chnl"), charIDToTypeID("Chnl"), charIDToTypeID("Msk "));
+            maskDesc.putReference(charIDToTypeID("At  "), ref);
+            maskDesc.putEnumerated(charIDToTypeID("Usng"), charIDToTypeID("UsrM"), charIDToTypeID("HdAl"));
+            executeAction(idMk, maskDesc, DialogModes.NO);
+            
+            return "success";
+        }})();
+        """
+        
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            raise Exception(res.get("error", "商业磨皮动作流执行失败"))
+            
+        return {"success": True, "message": f"图层 '{layer.Name}' 已成功应用自适应商业磨皮动作流，生成了包含黑色蒙版的无损磨皮层 '{layer.Name}_磨皮'"}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def apply_generative_fill(ctx: PhotoshopContext, prompt: str = "") -> dict:
+    """对当前活动选区执行 AI 生成式填充 (Generative Fill)。
+    
+    Args:
+        prompt: 生成式填充所需的英文描述词（提示词）。
+    """
+    try:
+        doc = ctx.get_doc()
+        layer = doc.ActiveLayer
+        
+        # 威胁模型：过滤一些显而易见的极端敏感词
+        sensitive_keywords = {"nude", "naked", "porn", "violence", "blood", "gore", "kill"}
+        clean_prompt = prompt.strip()
+        lower_prompt = clean_prompt.lower()
+        for kw in sensitive_keywords:
+            if kw in lower_prompt:
+                return {"success": False, "error": f"由于提示词中包含敏感或限制级词汇 '{kw}'，生成式填充已被前置拦截保护。"}
+                
+        prompt_escaped = clean_prompt.replace('\\', '\\\\').replace('\'', '\\\'').replace('\n', '\\n').replace('\r', '')
+        
+        # 决策 D-06: 选区强拦截防御
+        jsx_code = f"""
+        (function() {{
+            var doc = app.activeDocument;
+            
+            var hasSelection = false;
+            try {{
+                var bounds = doc.selection.bounds;
+                hasSelection = true;
+            }} catch(e) {{}}
+            
+            if (!hasSelection) {{
+                return "ERROR: NO_SELECTION";
+            }}
+            
+            var idsyntheticFill = stringIDToTypeID("syntheticFill");
+            var desc = new ActionDescriptor();
+            var ref = new ActionReference();
+            ref.putEnumerated(stringIDToTypeID("document"), stringIDToTypeID("ordinal"), stringIDToTypeID("targetEnum"));
+            desc.putReference(stringIDToTypeID("null"), ref);
+            
+            if ('{prompt_escaped}') {{
+                desc.putString(stringIDToTypeID("text"), '{prompt_escaped}');
+            }}
+            
+            executeAction(idsyntheticFill, desc, DialogModes.NO);
+            return "success";
+        }})();
+        """
+        
+        res = execute_jsx(ctx, jsx_code)
+        if not res["success"]:
+            raise Exception(res.get("error", "生成式填充执行失败"))
+            
+        result_str = str(res.get("result", ""))
+        if "ERROR: NO_SELECTION" in result_str:
+            return {
+                "success": False, 
+                "error": "生成式填充已被拦截：当前没有有效活动选区。请先用套索、魔棒等工具创建目标选区，或者让我利用 AI '选择主体'选中区域后重试。"
+            }
+            
+        # 决策 D-08: 提示变体选择
+        return {
+            "success": True, 
+            "message": f"成功在图层 '{layer.Name}' 选区内应用生成式填充。已为您触发生成填充，请在 Photoshop 右侧的‘属性’面板中选择切换我为您生成的 3 个变体。"
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+
+
+

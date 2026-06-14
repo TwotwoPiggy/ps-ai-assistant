@@ -91,3 +91,12 @@ registry.register(ps_tools.set_color)
 registry.register(ps_tools.fill_selection)
 registry.register(ps_tools.color_correction)
 registry.register(ps_tools.stroke_selection)
+
+# 注册高级滤镜与美化工具
+registry.register(ps_tools.apply_blur_sharpen)
+registry.register(ps_tools.apply_liquify)
+registry.register(ps_tools.apply_camera_raw_preset)
+registry.register(ps_tools.apply_neural_filter)
+registry.register(ps_tools.apply_commercial_retouch)
+registry.register(ps_tools.apply_generative_fill)
+
