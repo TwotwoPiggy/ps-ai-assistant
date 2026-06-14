@@ -14,3 +14,4 @@
 - UXP 相关的迁移操作已明确废弃
 
 ## Traceability
+- **Phase 08**: INST-01, UPD-01, UNINST-01

@@ -1,27 +1,19 @@
-# Roadmap: PS AI Assistant
+# Roadmap
 
-## Milestones
+## Milestone v1.4 实现安装、更新和卸载功能
 
-- ✅ **v1.3 COM 接口高级能力实现** — Phases 4-7 (shipped 2026-06-14)
-- ✅ **v1.2 Photoshop 核心功能全面 UXP 迁移与重构** — Phases 1-3 (shipped 2026-06-13)
+**1 phases** | **3 requirements mapped** | All covered ✓
 
-## Phases
+| # | Phase | Goal | Requirements | Success Criteria |
+|---|-------|------|--------------|------------------|
+| 08 | 客户端生命周期管理 (Lifecycle Management) | 为应用提供一键式的独立安装、平滑更新与干净的卸载流程 | INST-01, UPD-01, UNINST-01 | 3 |
 
-<details>
-<summary>✅ v1.3 COM 接口高级能力实现 (Phases 4-7) — SHIPPED 2026-06-14</summary>
+### Phase Details
 
-- [x] Phase 04: 选区与蒙版控制 (Selection & Mask) (1/1 plans) — completed 2026-06-14
-- [x] Phase 05: 专业调色与光影实现 (Color Correction) (1/1 plans) — completed 2026-06-14
-- [x] Phase 06: 高级滤镜与人像美化 (Filters & Retouching) (1/1 plans) — completed 2026-06-14
-- [x] Phase 07: 自动化与动作集成 (Automation & Actions) (1/1 plans) — completed 2026-06-14
-
-</details>
-
-## Progress
-
-| Phase             | Milestone | Plans Complete | Status      | Completed  |
-| ----------------- | --------- | -------------- | ----------- | ---------- |
-| 04. 选区与蒙版控制 | v1.3      | 1/1            | Complete    | 2026-06-14 |
-| 05. 专业调色与光影 | v1.3      | 1/1            | Complete    | 2026-06-14 |
-| 06. 高级滤镜与人像 | v1.3      | 1/1            | Complete    | 2026-06-14 |
-| 07. 自动化与集成动作 | v1.3      | 1/1            | Complete    | 2026-06-14 |
+### Phase 08: 客户端生命周期管理 (Lifecycle Management)
+Goal: 为应用提供一键式的独立安装、平滑更新与干净的卸载流程
+Requirements: INST-01, UPD-01, UNINST-01
+Success criteria:
+1. 用户执行安装脚本/程序后，系统能够自动配置好 Python 环境、安装必要的依赖包并生成桌面快捷方式。
+2. 应用提供更新机制，在触发更新时能够自动拉取最新代码和增量依赖。
+3. 提供独立的卸载脚本/程序，执行后可以彻底移除应用文件夹、环境依赖与对应的快捷方式/注册表残留。
