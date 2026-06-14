@@ -1,5 +1,7 @@
 # Photoshop AI Assistant
 
+<span>**中文** | [English](README.en.md)</span>
+
 使用自然语言控制 Adobe Photoshop —— 基于 Gemini AI 的智能 PS 操作助手。
 
 通过对话的方式，让 AI 直接操控 Photoshop，完成图层管理、画布编辑等常见操作。
@@ -9,7 +11,8 @@
 - **操作系统**: Windows（需要 COM 接口控制 Photoshop）
 - **Python**: 3.10+
 - **Adobe Photoshop**: 已安装并可运行
-- **Gemini API Key**: 从 [Google AI Studio](https://aistudio.google.com/apikey) 获取
+- **API Key**: 需提供至少一种受支持的 AI 模型 API Key（支持 Gemini、DeepSeek、Qwen 通义千问等，或兼容 OpenAI 格式的自定义接口）。
+  - *注意：所选模型需要同时支持 **Function Calling（工具调用）** 与 **多模态图片输入**（用于画布快照分析，如 `gemini-3.1-flash-lite`、`mimo-v2.5` 等）。*
 
 ## 安装
 
@@ -91,15 +94,21 @@ python -m backend.server
 
 ### 配置 API Key
 
-有两种方式配置 Gemini API Key：
+本项目支持多种大模型提供商（Gemini、DeepSeek、Qwen 通义千问等）。有两种方式配置 API Key：
 
-1. **环境变量**（推荐）:
+1. **前端配置面板**（推荐）: 启动服务器后，点击前端 UI 右上角的设置按钮，在设置面板中选择你想使用的大模型提供商，输入对应的 API Key 并保存。如果是自定义模型，还可配置 Base URL 和 模型名称。
+
+2. **环境变量**:
+   针对不同模型，可以在启动前设置对应的环境变量：
+   - Gemini: `GEMINI_API_KEY`
+   - DeepSeek: `DEEPSEEK_API_KEY`
+   - Qwen (通义千问): `DASHSCOPE_API_KEY`
+   
+   示例：
    ```bash
-   set GEMINI_API_KEY=your-api-key-here
+   set DEEPSEEK_API_KEY=your-api-key-here
    python -m backend.server
    ```
-
-2. **前端配置面板**: 启动服务器后，在前端 UI 的设置面板中输入并保存 API Key。
 
 ### 使用 AI 助手
 
@@ -177,7 +186,7 @@ ps-ai-assistant/
 
 ## 技术栈
 
-- **AI 模型**: Google Gemini 2.5 Flash (Function Calling)
+- **AI 模型**: Google Gemini / DeepSeek / Qwen 等 (Function Calling)
 - **后端**: FastAPI + python-socketio + uvicorn
 - **PS 控制**: pywin32 COM 接口
 - **通信协议**: Socket.IO (WebSocket)
