@@ -1,5 +1,5 @@
 ---
-status: testing
+status: passed
 phase: 02-图层进阶操作补全
 source: [SUMMARY.md]
 started: 2026-06-13T10:55:00Z
